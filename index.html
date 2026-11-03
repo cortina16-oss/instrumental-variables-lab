@@ -1,0 +1,1499 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Interactive explainer and simulation lab for endogeneity, instrumental variables (2SLS), and tests of instrument relevance and exogeneity, with a tool for analyzing your own data.">
+<style>
+:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0;font:14px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+img{max-width:100%}
+[hidden]{display:none!important}
+</style>
+<title>Instrumental Variables Lab</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: narrow reading column for the argument (§1–2), then a wide two-column lab
+   (sticky controls | live results) that carries §3–5, then the narrow column again. */
+:root{
+  --bg:#f3f5f7; --surface:#ffffff; --surface-2:#e8ecf0; --line:#d2d9e0;
+  --ink:#15202a; --muted:#566472;
+  --ols:#8b3cae; --iv:#1d5dbd; --z:#0a7770; --u:#86725b; --ulo:#16867c; --umid:#a9b1b9; --uhi:#d0741f;
+  --bad:#c0321f; --good:#1f7c49; --warn:#9b5c00;
+  --bad-bg:#fbe9e6; --good-bg:#e5f3ea; --warn-bg:#f8eedb; --info-bg:#e6eefa;
+  --display:"Instrument Serif", "Iowan Old Style", Georgia, serif;
+  --body:"Instrument Sans", "Helvetica Neue", Arial, sans-serif;
+  --mono:"JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0e1318; --surface:#151c23; --surface-2:#1d2630; --line:#2b3641;
+  --ink:#e4e9ee; --muted:#93a1ae;
+  --ols:#c68ae0; --iv:#76a6f2; --z:#4cc2b6; --u:#bba98f; --ulo:#4cc2b6; --umid:#5f6a75; --uhi:#f0a35a;
+  --bad:#ff7d66; --good:#62cf8e; --warn:#e8aa4c;
+  --bad-bg:#3a1d19; --good-bg:#16301f; --warn-bg:#352812; --info-bg:#182a44;
+  color-scheme:dark; } }
+:root[data-theme="dark"]{
+  --bg:#0e1318; --surface:#151c23; --surface-2:#1d2630; --line:#2b3641;
+  --ink:#e4e9ee; --muted:#93a1ae;
+  --ols:#c68ae0; --iv:#76a6f2; --z:#4cc2b6; --u:#bba98f; --ulo:#4cc2b6; --umid:#5f6a75; --uhi:#f0a35a;
+  --bad:#ff7d66; --good:#62cf8e; --warn:#e8aa4c;
+  --bad-bg:#3a1d19; --good-bg:#16301f; --warn-bg:#352812; --info-bg:#182a44;
+  color-scheme:dark; }
+
+*{box-sizing:border-box}
+body{background:var(--bg); color:var(--ink); font-family:var(--body); font-size:16px; line-height:1.6;
+  padding-left:max(16px, env(safe-area-inset-left,0px)); padding-right:max(16px, env(safe-area-inset-right,0px));}
+.wrap{max-width:1180px; margin:0 auto}
+.prose{max-width:68ch}
+h1,h2,h3{text-wrap:balance; margin:0}
+h1{font-family:var(--display); font-weight:400; font-size:clamp(2.6rem,6vw,4.2rem); line-height:1.02; letter-spacing:-.01em}
+h1 em{font-style:italic; color:var(--z)}
+h2{font-family:var(--display); font-weight:400; font-size:clamp(1.9rem,3.6vw,2.5rem); line-height:1.1}
+h3{font-size:1.02rem; font-weight:600; letter-spacing:.005em}
+p{margin:0}
+.eyebrow{font-family:var(--mono); font-size:.74rem; letter-spacing:.12em; text-transform:uppercase; color:var(--muted)}
+.secnum{font-family:var(--mono); font-size:.78rem; color:var(--z); letter-spacing:.08em}
+var,.sym{font-family:var(--display); font-style:italic; font-size:1.12em; line-height:1}
+.mono,.num{font-family:var(--mono); font-variant-numeric:tabular-nums}
+a{color:var(--iv)}
+:focus-visible{outline:2px solid var(--iv); outline-offset:2px}
+
+header.top{padding-block:56px 32px; display:grid; gap:18px}
+.lede{font-size:1.14rem; color:var(--muted); max-width:62ch}
+nav.toc{display:flex; flex-wrap:wrap; gap:6px 18px; font-size:.9rem; padding-top:6px}
+nav.toc a{color:var(--ink); text-decoration:none; border-bottom:1px solid var(--line)}
+nav.toc a:hover{border-color:var(--ink)}
+nav.toc span{font-family:var(--mono); color:var(--muted); margin-right:4px; font-size:.8rem}
+
+section.block{padding-block:40px; border-top:1px solid var(--line); display:grid; gap:18px}
+.stack{display:grid; gap:14px}
+.eq{font-family:var(--display); font-size:1.45rem; background:var(--surface); border:1px solid var(--line);
+  padding:14px 18px; border-radius:6px; overflow-x:auto; white-space:nowrap}
+.deriv .frac{display:inline-flex; flex-direction:column; vertical-align:middle; text-align:center; margin:0 4px; font-size:.92em}
+.deriv .frac span:first-child{border-bottom:1px solid currentColor; padding:0 4px}
+.deriv div.tall{padding-block:4px}
+.eq .frac{display:inline-flex; flex-direction:column; vertical-align:middle; text-align:center; margin:0 4px; font-size:.92em}
+.eq .frac span:first-child{border-bottom:1px solid currentColor; padding:0 4px}
+.eq small{font-family:var(--body); font-size:.8rem; color:var(--muted); display:block; white-space:normal; margin-top:6px}
+.sources{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px 28px; max-width:68ch}
+.sources div{min-width:0}
+.sources h3{margin-bottom:2px}
+.sources p{color:var(--muted); font-size:.95rem}
+.why{display:grid; gap:10px; max-width:68ch; padding-left:0; margin:0; list-style:none; counter-reset:w}
+.why li{padding-left:18px; border-left:2px solid var(--bad)}
+.why-box{border:1px solid var(--line); border-radius:6px; background:var(--surface); max-width:68ch}
+.why-box summary{cursor:pointer; padding:8px 12px; font-size:.88rem; font-weight:600; color:var(--iv); list-style:none; display:flex; align-items:center; gap:8px}
+.why-box summary::-webkit-details-marker{display:none}
+.why-box summary::before{content:"+"; font-family:var(--mono); width:1em; text-align:center}
+.why-box[open] summary::before{content:"−"}
+.why-box[open] summary{border-bottom:1px solid var(--line)}
+.why-box>div{padding:12px 14px; font-size:.93rem}
+.node.latent circle{stroke-dasharray:4 3}
+.vlab{font-family:var(--mono); font-size:10.5px; fill:var(--muted)}
+.calc-box{fill:var(--surface-2); stroke:var(--line)}
+.calc{font-family:var(--mono); font-size:11.5px; fill:var(--ink); white-space:pre}
+.ols-dot{stroke:var(--ols); stroke-width:2; stroke-dasharray:2 4; stroke-linecap:round}
+.elab.ols-lab{fill:var(--ols)}
+h4.sub{margin:8px 0 0; font-size:1rem; font-weight:600; color:var(--z); text-wrap:balance}
+h5.subsub{margin:4px 0 0; font-size:.95rem; font-weight:600; font-style:italic; text-wrap:balance}
+.examples{margin:0; padding-left:1.2em; display:grid; gap:10px}
+.examples li::marker{color:var(--z)}
+.examples .exo{display:block; margin-top:8px}
+.fn{font-size:.85rem; color:var(--muted); margin-top:-4px}
+.cond{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; max-width:68ch}
+.cond>div{background:var(--surface); border:1px solid var(--line); border-radius:6px; padding:14px 16px; min-width:0}
+.cond .tag{font-family:var(--mono); font-size:.72rem; letter-spacing:.08em; text-transform:uppercase}
+.cond .tag.ok{color:var(--good)} .cond .tag.no{color:var(--bad)}
+@media (max-width:640px){ .sources,.cond{grid-template-columns:1fr} }
+.src{display:grid; gap:10px; padding-block:18px 6px; border-top:1px solid var(--line); max-width:68ch}
+.src h3{font-size:1.12rem}
+.src .sum{color:var(--muted)}
+.src .lab{font-family:var(--mono); font-size:.72rem; letter-spacing:.08em; text-transform:uppercase; color:var(--z); margin-top:4px}
+.deriv{font-family:var(--display); font-size:1.16rem; background:var(--surface); border:1px solid var(--line); border-radius:6px; padding:10px 16px; overflow-x:auto; display:grid; gap:4px}
+.deriv div{white-space:nowrap}
+.fig{margin:0; background:var(--surface); border:1px solid var(--line); border-radius:6px; padding:12px 14px; display:grid; gap:8px}
+.fig figcaption{font-size:.88rem; color:var(--muted)}
+.node.err circle{stroke:var(--muted); stroke-width:1}
+.node.err text.n{font-size:17px; fill:var(--muted)}
+.deriv .c{font-family:var(--body); font-size:.8rem; color:var(--muted); margin-left:14px}
+
+/* ---------- Lab ---------- */
+.lab{display:grid; grid-template-columns:300px minmax(0,1fr); gap:36px; align-items:start; padding-block:8px 40px}
+.controls{position:sticky; top:calc(env(safe-area-inset-top,0px) + 12px); max-height:calc(100vh - 24px); overflow:auto;
+  background:var(--surface); border:1px solid var(--line); border-radius:8px; padding:16px; display:grid; gap:16px}
+.controls h3{font-size:.74rem; font-family:var(--mono); letter-spacing:.1em; text-transform:uppercase; color:var(--muted); font-weight:500}
+.cgroup{display:grid; gap:8px}
+.cgroup .note{font-size:.8rem; color:var(--muted); margin-top:-4px}
+.slider{display:grid; gap:2px}
+.slider .row{display:flex; justify-content:space-between; align-items:baseline; gap:8px}
+.slider label{font-size:.88rem}
+.slider label .sym{margin-right:4px}
+.slider output{font-family:var(--mono); font-size:.85rem; font-variant-numeric:tabular-nums}
+input[type=range]{width:100%; margin:0; height:22px}
+.c-ink{accent-color:var(--ink)} .c-u{accent-color:var(--u)} .c-z{accent-color:var(--z)} .c-bad{accent-color:var(--bad)} .c-iv{accent-color:var(--iv)}
+.presets{display:flex; flex-direction:column; align-items:stretch; gap:5px}
+.presets .chip{text-align:left; border-radius:6px; padding:6px 10px}
+.pdesc{margin:-3px 0 3px; padding:8px 10px; font-size:.8rem; line-height:1.5; color:var(--ink); background:var(--surface-2); border-left:3px solid var(--ink); border-radius:0 6px 6px 0}
+.pdesc.custom{color:var(--muted); border-left-color:var(--line); margin-top:2px}
+button{font:inherit; cursor:pointer}
+.chip{font-size:.8rem; padding:4px 10px; border-radius:999px; border:1px solid var(--line); background:var(--bg); color:var(--ink)}
+.chip:hover{border-color:var(--ink)}
+.chip[aria-pressed="true"]{background:var(--ink); color:var(--bg); border-color:var(--ink)}
+.seg{display:grid; grid-template-columns:1fr 1fr; border:1px solid var(--line); border-radius:6px; overflow:hidden}
+.seg button{border:0; background:var(--bg); color:var(--ink); padding:7px 6px; font-size:.8rem; line-height:1.25}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--ink); color:var(--bg)}
+.btn{border:1px solid var(--ink); background:var(--ink); color:var(--bg); border-radius:6px; padding:8px 12px; font-weight:600; font-size:.88rem}
+.btn.ghost{background:transparent; color:var(--ink)}
+.dgp{font-family:var(--mono); font-size:.78rem; background:var(--surface-2); border-radius:6px; padding:10px 12px; line-height:1.7; overflow-x:auto; white-space:pre}
+
+.results{display:grid; gap:28px; min-width:0}
+.panel{background:var(--surface); border:1px solid var(--line); border-radius:8px; padding:18px; display:grid; gap:12px; min-width:0}
+.panel-head{display:flex; justify-content:space-between; align-items:baseline; gap:12px; flex-wrap:wrap}
+.panel-head p{font-size:.88rem; color:var(--muted)}
+svg{display:block; width:100%; height:auto}
+.svgbox{overflow-x:auto}
+
+/* DAG */
+.node circle{fill:var(--surface); stroke:var(--ink); stroke-width:1.5}
+.node.u circle{stroke:var(--u); stroke-dasharray:4 3}
+.node.z circle{stroke:var(--z)}
+.node.unused circle{stroke:var(--line)}
+.node.unused text{fill:var(--muted)}
+.node text.n{font-family:var(--display); font-style:italic; font-size:24px; fill:var(--ink); text-anchor:middle; dominant-baseline:central}
+.node text.c{font-family:var(--mono); font-size:10.5px; fill:var(--muted); text-anchor:middle; letter-spacing:.06em; text-transform:uppercase}
+.edge{fill:none; stroke-linecap:round; transition:stroke-width .15s}
+.e-z{stroke:var(--z)} .e-ink{stroke:var(--ink)} .e-u{stroke:var(--u)} .e-bad{stroke:var(--bad); stroke-dasharray:6 4}
+.edge.off{stroke:var(--line); stroke-dasharray:3 4}
+.mk-z{fill:var(--z)} .mk-ink{fill:var(--ink)} .mk-u{fill:var(--u)} .mk-bad{fill:var(--bad)} .mk-off{fill:var(--line)}
+.elab{font-family:var(--mono); font-size:11.5px; fill:var(--ink); paint-order:stroke; stroke:var(--surface); stroke-width:4px; stroke-linejoin:round}
+.elab.bad{fill:var(--bad)} .elab.off{fill:var(--muted)}
+
+/* Estimates */
+.est-grid{display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,1fr); gap:18px; align-items:start}
+@media (max-width:1040px){ .est-grid{grid-template-columns:1fr} }
+.tbl-wrap{overflow-x:auto}
+table{border-collapse:collapse; width:100%; font-size:.88rem}
+th,td{padding:7px 8px; text-align:right; border-bottom:1px solid var(--line); white-space:nowrap; font-variant-numeric:tabular-nums}
+th{font-weight:500; color:var(--muted); font-size:.76rem; text-transform:uppercase; letter-spacing:.06em}
+th:first-child,td:first-child{text-align:left}
+td.num{font-family:var(--mono); font-size:.84rem}
+.key{display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:7px; vertical-align:baseline}
+.k-ols{background:var(--ols)} .k-iv{background:var(--iv)} .k-true{background:var(--ink)}
+.reading{background:var(--surface-2); border-radius:6px; padding:12px 14px; font-size:.93rem; display:grid; gap:6px}
+.reading p b{font-weight:600}
+.axis text{font-family:var(--mono); font-size:11px; fill:var(--muted)}
+.axis line,.axis path{stroke:var(--line)}
+.grid line{stroke:var(--line); stroke-opacity:.6}
+.lbl{font-family:var(--body); font-size:12px; fill:var(--muted)}
+.pts{fill:var(--ink); fill-opacity:.22}
+.l-true{stroke:var(--ink); stroke-width:2; stroke-dasharray:6 4; fill:none}
+.l-ols{stroke:var(--ols); stroke-width:2.5; fill:none}
+.l-iv{stroke:var(--iv); stroke-width:2.5; fill:none}
+.f-ols{fill:var(--ols)} .f-iv{fill:var(--iv)} .f-ink{fill:var(--ink)}
+.legend{display:flex; flex-wrap:wrap; gap:4px 16px; font-size:.82rem; color:var(--muted)}
+.legend span{display:inline-flex; align-items:center; gap:6px}
+.legend i{display:inline-block; width:18px; height:0; border-top:2.5px solid}
+.legend i.t{border-top:2px dashed var(--ink)} .legend i.o{border-color:var(--ols)} .legend i.v{border-color:var(--iv)}
+.legend i.w{border-top:2px solid var(--umid)}
+.legend b.dot{display:inline-block; width:9px; height:9px; border-radius:50%}
+.dot.g0{background:var(--ulo)} .dot.g1{background:var(--umid)} .dot.g2{background:var(--uhi)}
+.pts-g0{fill:var(--ulo); fill-opacity:.6} .pts-g1{fill:var(--umid); fill-opacity:.4} .pts-g2{fill:var(--uhi); fill-opacity:.6}
+.l-halo{stroke:var(--surface); stroke-width:5.5; stroke-linecap:round}
+.l-g0,.l-g1,.l-g2{stroke-width:2.2; stroke-linecap:round}
+.l-g0{stroke:var(--ulo)} .l-g1{stroke:var(--umid)} .l-g2{stroke:var(--uhi)}
+.sens-ctl{display:flex; flex-wrap:wrap; gap:16px; align-items:flex-end}
+.s-band{fill:var(--iv); fill-opacity:.14}
+.s-zero{stroke:var(--muted); stroke-width:1}
+.ud-panel{gap:14px}
+.ud-step{display:flex; align-items:center; gap:10px; margin-top:4px}
+.ud-step span{font-family:var(--mono); font-size:.78rem; width:22px; height:22px; border-radius:50%; display:inline-grid; place-items:center; background:var(--ink); color:var(--bg)}
+.ud-load{display:flex; flex-wrap:wrap; gap:10px; align-items:center}
+.ud-file{position:relative; overflow:hidden; display:inline-flex; align-items:center}
+.ud-file input{position:absolute; inset:0; opacity:0; cursor:pointer}
+.ud-file:focus-within{outline:2px solid var(--iv); outline-offset:2px}
+.ud-grid{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px 20px}
+@media (max-width:700px){ .ud-grid{grid-template-columns:1fr} }
+.ud-field{display:grid; gap:6px; align-content:start; min-width:0}
+.ud-field label,.ud-lab{font-size:.88rem; font-weight:600}
+.ud-field select,#ud-paste{font:inherit; font-size:.9rem; padding:7px 8px; border-radius:6px; border:1px solid var(--line); background:var(--bg); color:var(--ink); width:100%}
+#ud-paste{font-family:var(--mono); font-size:.8rem}
+.cklist{display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:4px 10px; max-height:150px; overflow:auto; border:1px solid var(--line); border-radius:6px; padding:8px; background:var(--bg)}
+.cklist .ck{display:flex; align-items:center; gap:6px; font-size:.85rem; font-weight:400; min-width:0; overflow-wrap:anywhere}
+.cklist input,.ud-radios input{accent-color:var(--iv); margin:0}
+.ud-radios{display:grid; gap:6px}
+.ud-radios label{display:flex; gap:8px; align-items:center; font-weight:400; font-size:.86rem}
+.err{color:var(--bad)}
+.ud-two{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px}
+@media (max-width:1000px){ .ud-two{grid-template-columns:1fr} }
+.ud-diag td:last-child{white-space:normal; text-align:left; min-width:260px; font-size:.84rem; line-height:1.45}
+.ud-diag td{vertical-align:top}
+.ud-copy-text{font-family:var(--mono); font-size:.78rem; width:100%; padding:8px; border:1px solid var(--line); border-radius:6px; background:var(--surface-2); color:var(--ink)}
+.f-ar{fill:var(--z)} .l-ar{stroke:var(--z); stroke-width:2.5; fill:none}
+.cite-box{display:grid; gap:14px; max-width:80ch}
+.cite-item{display:grid; grid-template-columns:minmax(0,1fr) auto; gap:4px 14px; align-items:end; padding-bottom:12px; border-bottom:1px solid var(--line)}
+.cite-item h3{grid-column:1/-1; font-size:.9rem}
+.cite-text{margin:0; font-size:.93rem; overflow-wrap:anywhere; padding-left:1.6em; text-indent:-1.6em}
+.cite-btn{padding:5px 12px; font-size:.82rem}
+.tog{display:inline-flex; align-items:center; gap:8px; font-size:.88rem; cursor:pointer}
+.tog input{accent-color:var(--u); width:16px; height:16px; margin:0}
+
+/* Tests */
+.tests{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px}
+@media (max-width:1100px){ .tests{grid-template-columns:1fr} }
+.test{background:var(--surface); border:1px solid var(--line); border-radius:8px; padding:16px; display:grid; gap:10px; align-content:start; min-width:0}
+.test .q{font-family:var(--display); font-size:1.35rem; line-height:1.15}
+.test .who{font-family:var(--mono); font-size:.72rem; color:var(--muted); letter-spacing:.06em; text-transform:uppercase}
+.test .h0{font-size:.86rem; color:var(--muted)}
+.stat{display:flex; align-items:baseline; justify-content:space-between; gap:10px; flex-wrap:wrap; padding-block:8px; border-block:1px solid var(--line)}
+.stat .big{font-family:var(--mono); font-size:1.05rem}
+.stat .sub{font-family:var(--mono); font-size:.8rem; color:var(--muted); width:100%}
+.pill{font-size:.76rem; font-weight:600; padding:3px 9px; border-radius:999px; white-space:nowrap}
+.pill.good{background:var(--good-bg); color:var(--good)}
+.pill.bad{background:var(--bad-bg); color:var(--bad)}
+.pill.warn{background:var(--warn-bg); color:var(--warn)}
+.pill.info{background:var(--info-bg); color:var(--iv)}
+.pill.na{background:var(--surface-2); color:var(--muted)}
+.test dl{margin:0; display:grid; gap:6px; font-size:.86rem}
+.test dt{font-weight:600; font-size:.78rem; text-transform:uppercase; letter-spacing:.06em; color:var(--muted)}
+.test dd{margin:0}
+.test dd.para{margin-top:6px}
+.truth{font-size:.84rem; border-left:3px solid var(--ink); padding:4px 0 4px 10px; background:var(--surface-2); border-radius:0 4px 4px 0}
+.truth b{font-weight:600}
+
+.alg{display:grid; gap:8px; font-size:.92rem}
+.alg .r{display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; border-bottom:1px dashed var(--line); padding-bottom:6px}
+.alg .r:last-child{border-bottom:0}
+.alg .f{font-family:var(--display); font-size:1.1rem}
+.alg .v{font-family:var(--mono)}
+
+.mc-bar{display:flex; flex-wrap:wrap; align-items:center; gap:10px}
+.mc-bar select{font:inherit; font-size:.88rem; padding:6px 8px; border-radius:6px; border:1px solid var(--line); background:var(--bg); color:var(--ink)}
+.status{font-family:var(--mono); font-size:.8rem; color:var(--muted)}
+.rates{display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:12px}
+@media (max-width:760px){ .rates{grid-template-columns:1fr} }
+.rate{border:1px solid var(--line); border-radius:6px; padding:12px; display:grid; gap:4px; min-width:0}
+.rate .v{font-family:var(--mono); font-size:1.4rem}
+.rate .l{font-size:.82rem; color:var(--muted)}
+.rate .k{font-size:.76rem; font-weight:600; text-transform:uppercase; letter-spacing:.06em}
+
+ol.check{margin:0; padding-left:1.4em; display:grid; gap:10px; max-width:68ch}
+ol.check li::marker{font-family:var(--mono); color:var(--z)}
+.refs{font-size:.86rem; color:var(--muted); display:grid; gap:6px; max-width:80ch; padding-left:0; list-style:none}
+.refs li{padding-left:1.6em; text-indent:-1.6em}
+footer{padding-block:28px 48px; font-size:.82rem; color:var(--muted); border-top:1px solid var(--line)}
+
+@media (max-width:900px){
+  .lab{grid-template-columns:1fr}
+  .controls{position:static; max-height:none}
+}
+@media (prefers-reduced-motion:reduce){ .edge{transition:none} }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="top">
+  <div class="eyebrow">Causal inference with observational data</div>
+  <h1>Instrumental <em>Variables</em> Lab</h1>
+  <p class="lede">Why a correlated error ruins a regression coefficient, how an instrument recovers the causal effect, and what the standard diagnostics can and cannot tell you. The lab simulates data from a model you control, so you can compare every estimate and test against the truth.</p>
+  <div class="eyebrow" id="toc-label" style="margin-bottom:-10px">Contents</div>
+  <nav class="toc" aria-labelledby="toc-label">
+    <a href="#endogeneity"><span>1</span>Endogeneity</a>
+    <a href="#instruments"><span>2</span>Instruments</a>
+    <a href="#lab"><span>3</span>The lab</a>
+    <a href="#tests"><span>4</span>Testing exogeneity</a>
+    <a href="#montecarlo"><span>5</span>Repeated samples</a>
+    <a href="#yourdata"><span>6</span>Your data</a>
+    <a href="#practice"><span>7</span>In practice</a>
+  </nav>
+</header>
+
+<section class="block" id="endogeneity">
+  <div class="secnum">§1 · THE PROBLEM</div>
+  <h2>Endogeneity: when <var>X</var> is tangled up with the error term</h2>
+  <div class="prose stack">
+    <p>In the model <var>Y</var> = β<sub>0</sub> + β<sub>1</sub><var>X</var> + <var>u</var>, the error term <var>u</var> contains the effect of every other cause of <var>Y</var>. OLS recovers the causal effect β<sub>1</sub> only if <var>X</var> is uncorrelated with <var>u</var>. When it is not, <var>X</var> is <strong>endogenous</strong>, and OLS converges to the wrong value:</p>
+    <p class="fn" style="margin-top:0">Throughout, β (or β<sub>1</sub>) denotes the true unstandardized coefficient in the population (the effect of a 1-unit change in <var>X</var> on <var>Y</var>), and β̂ denotes its estimate from a sample. This follows the econometric convention; in APA style, the estimate would be written <var>b</var>, and β would denote a standardized coefficient.</p>
+  </div>
+  <div class="eq prose">plim β̂<sub>OLS</sub> = β<sub>1</sub> + <span class="frac"><span>Cov(<var>X</var>, <var>u</var>)</span><span>Var(<var>X</var>)</span></span></div>
+  <p class="prose">The second term is the bias. If Cov(<var>X</var>, <var>u</var>) = 0, the bias term drops out and plim β̂<sub>OLS</sub> = β<sub>1</sub>. <var>X</var> is then <strong>exogenous</strong>, and OLS is consistent: as <var>n</var> grows, the estimate converges to the causal effect. If the stronger condition E(<var>u</var> | <var>X</var>) = 0 also holds, OLS is unbiased in finite samples. Under homoskedastic errors it is also the most efficient linear unbiased estimator. Everything in the rest of this page is about restoring that condition when it fails.</p>
+  <h3 style="margin-top:6px">Where endogeneity comes from</h3>
+  <p class="prose">Each endogeneity source below is analyzed in the same three steps. The first step lays out the equations that describe how <var>X</var> and <var>Y</var> are actually produced, including any causes the researcher does not observe. The second step re-expresses the equation for <var>Y</var> as the regression the researcher actually runs, in which everything other than β<var>X</var> ends up in the error term <var>u</var>. The third step asks whether that error term contains something that is also part of <var>X</var>. If it does, Cov(<var>X</var>, <var>u</var>) ≠ 0 and OLS is biased.</p>
+
+  <article class="src">
+    <h3>Endogeneity source #1: Omitted common causes</h3>
+    <p class="sum">An unmeasured variable <var>U</var> drives both <var>X</var> and <var>Y</var>. Ability, for example, raises both schooling and earnings.</p>
+    <p>Start from the data-generating model (the equations that describe how the values of each variable are actually produced in the population, including causes we never observe). <var>U</var> affects both variables:</p>
+    <div class="deriv"><div><var>Y</var> = β<var>X</var> + δ<var>U</var> + ε, &nbsp;&nbsp; <var>X</var> = γ<var>U</var> + <var>v</var></div></div>
+    <p><var>U</var> is a component of both <var>Y</var> and <var>X</var>, but <var>U</var> is not measured, so the regression of <var>Y</var> on <var>X</var> cannot include it. Everything that is not β<var>X</var> counts as error:</p>
+    <div class="deriv"><div><var>Y</var> = β<var>X</var> + (δ<var>U</var> + ε) <span class="c">so <var>u</var> = δ<var>U</var> + ε</span></div>
+      <div>Cov(<var>X</var>, <var>u</var>) = Cov(γ<var>U</var> + <var>v</var>, δ<var>U</var> + ε) = γδ·Var(<var>U</var>)</div></div>
+    <p>The error term from the regression, <var>u</var>, should just be ε, the random part of <var>Y</var> that has nothing to do with <var>X</var>. Instead, it also includes δ<var>U</var>, the part of <var>Y</var> caused by the omitted variable. Because <var>X</var> contains γ<var>U</var> and the error contains δ<var>U</var>, the two share a component, causing Cov(<var>X</var>, <var>u</var>) ≠ 0.</p>
+    <div class="lab">A concrete case</div>
+    <p>Let schooling have no effect on earnings (β = 0), let ability be a positive cause of both schooling and earnings (γ = δ = 1), and give each independent source, <var>U</var>, <var>v</var>, and ε, a variance of 1. Then Var(<var>X</var>) = γ²Var(<var>U</var>) + Var(<var>v</var>) = 2, and OLS converges to 0 + 1/2 = 0.5. Because the true effect β = 0, all of that 0.5 is bias.</p>
+    <p>That is a sizable return to schooling built entirely from ability. OLS would lead us to conclude that a 1-point increase in the schooling variable produces a .5 increase in the earnings variable even though, in reality, increases in schooling have no effect on earnings.</p>
+    <figure class="fig">
+      <svg viewBox="0 0 560 220" role="img" aria-label="Path diagram: ability causes both schooling and earnings with coefficients of 1; schooling has no effect on earnings">
+        <defs>
+          <marker id="ab-u" viewBox="0 0 10 10" refX="2" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path class="mk-u" d="M0 0 L10 5 L0 10 z"/></marker>
+          <marker id="ab-off" viewBox="0 0 10 10" refX="2" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path class="mk-off" d="M0 0 L10 5 L0 10 z"/></marker>
+          <marker id="ab-m" viewBox="0 0 10 10" refX="2" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path style="fill:var(--muted)" d="M0 0 L10 5 L0 10 z"/></marker>
+        </defs>
+        <path class="edge e-u" style="stroke-width:3" d="M258.2 64.1 L137.7 142.1" marker-end="url(#ab-u)"/>
+        <path class="edge e-u" style="stroke-width:3" d="M301.8 64.1 L422.3 142.1" marker-end="url(#ab-u)"/>
+        <path class="edge off" style="stroke-width:1.5" d="M136 160 L417 160" marker-end="url(#ab-off)"/>
+        <path class="edge" style="stroke:var(--muted);stroke-width:1" d="M44 160 L77 160" marker-end="url(#ab-m)"/>
+        <path class="edge" style="stroke:var(--muted);stroke-width:1" d="M516 160 L483 160" marker-end="url(#ab-m)"/>
+        <g class="node u"><circle cx="280" cy="50" r="26"/><text class="n" x="280" y="50">U</text><text class="c" x="280" y="12">ability · unmeasured</text></g>
+        <g class="node"><circle cx="110" cy="160" r="26"/><text class="n" x="110" y="160">X</text><text class="c" x="110" y="204">schooling</text></g>
+        <g class="node"><circle cx="450" cy="160" r="26"/><text class="n" x="450" y="160">Y</text><text class="c" x="450" y="204">earnings</text></g>
+        <g class="node err"><circle cx="30" cy="160" r="14"/><text class="n" x="30" y="160">v</text></g>
+        <g class="node err"><circle cx="530" cy="160" r="14"/><text class="n" x="530" y="160">ε</text></g>
+        <text class="elab" x="186" y="96" text-anchor="end">γ = 1</text>
+        <text class="elab" x="374" y="96" text-anchor="start">δ = 1</text>
+        <text class="elab off" x="276" y="150" text-anchor="middle">β = 0 (no causal effect)</text>
+      </svg>
+      <figcaption><var>U</var>, <var>v</var>, and ε each have variance 1, so Var(<var>X</var>) = 1 + 1 = 2. The only connection between schooling and earnings is the back-door (aka spurious) path <var>X</var> ← <var>U</var> → <var>Y</var>. OLS cannot distinguish that path from the true causal path, which is zero in this case, so it reports the strength of the spurious path, γδ·Var(<var>U</var>)/Var(<var>X</var>) = (1)(1)(1)/2 = 0.5, as the effect of schooling.</figcaption>
+    </figure>
+    <div class="lab">Why this causes bias</div>
+    <p>People with high <var>U</var> get more <var>X</var> and more <var>Y</var>. The regression sees <var>X</var> and <var>Y</var> rise together and credits <var>X</var> with <var>U</var>'s effect. The <a href="#lab">lab in §3</a> simulates exactly this setup. Its unobserved variable <var>U</var> affects <var>X</var> through the γ slider and <var>Y</var> through the δ slider. Raising either one strengthens the back-door path <var>X</var> ← <var>U</var> → <var>Y</var> and widens the gap between OLS and the true β. Setting either one to zero closes the path. If the exclusion-violation sliders (φ₁, φ₂) are also at zero, OLS is then consistent for β.</p>
+  </article>
+
+  <article class="src">
+    <h3>Endogeneity source #2: Simultaneity</h3>
+    <p class="sum"><var>Y</var> also causes <var>X</var>. Suppose a researcher hypothesizes that a leader's behavior (<var>X</var>), as rated by team members, is a positive cause of team performance (<var>Y</var>). Team performance may also shape how the leader is rated, so the causal arrow may run in both directions.</p>
+    <p>Start from the data-generating model. Each variable appears in the other's equation, with independent errors <var>u</var> and <var>e</var>:</p>
+    <div class="deriv"><div><var>Y</var> = β<var>X</var> + <var>u</var>, &nbsp;&nbsp; <var>X</var> = α<var>Y</var> + <var>e</var></div></div>
+    <p>Substitute the first equation into the second and solve for <var>X</var>:</p>
+    <div class="deriv"><div><var>X</var> = α(β<var>X</var> + <var>u</var>) + <var>e</var>, <span class="c" style="margin-left:0">which can be rewritten as</span> <var>X</var> = (α<var>u</var> + <var>e</var>) / (1 − αβ)</div></div>
+    <p>Using covariance algebra, we can derive the covariance between <var>X</var> and <var>u</var> as</p>
+    <div class="deriv"><div>Cov(<var>X</var>, <var>u</var>) = α·Var(<var>u</var>) / (1 − αβ)</div></div>
+    <details class="why-box">
+      <summary>Show how this covariance is derived</summary>
+      <div class="stack" style="gap:10px">
+        <p><strong>1. Split <var>X</var> into its two parts.</strong> The solved equation is a weighted sum of <var>u</var> and <var>e</var>:</p>
+        <div class="deriv"><div><var>X</var> = [α / (1 − αβ)]·<var>u</var> + [1 / (1 − αβ)]·<var>e</var></div></div>
+        <p><strong>2. Use the fact that covariance is linear.</strong> For constants <var>c</var> and <var>d</var>, Cov(<var>cA</var> + <var>dB</var>, <var>C</var>) = <var>c</var>·Cov(<var>A</var>, <var>C</var>) + <var>d</var>·Cov(<var>B</var>, <var>C</var>). So</p>
+        <div class="deriv"><div>Cov(<var>X</var>, <var>u</var>) = [α / (1 − αβ)]·Cov(<var>u</var>, <var>u</var>) + [1 / (1 − αβ)]·Cov(<var>e</var>, <var>u</var>)</div></div>
+        <p><strong>3. Simplify the two covariances.</strong> A variable's covariance with itself is its variance, so Cov(<var>u</var>, <var>u</var>) = Var(<var>u</var>). The two errors are independent, so Cov(<var>e</var>, <var>u</var>) = 0. The second term drops out, leaving Cov(<var>X</var>, <var>u</var>) = α·Var(<var>u</var>) / (1 − αβ).</p>
+        <p><strong>What the pieces mean.</strong> α is how strongly <var>Y</var> feeds back into <var>X</var>; if α = 0, there is no reverse causation, the covariance is zero, and OLS is fine. Var(<var>u</var>) is how much the outcome variable's error varies; the larger it is, the more of it flows back into <var>X</var>. 1 / (1 − αβ) is the feedback multiplier: a change in <var>u</var> moves <var>Y</var>, which moves <var>X</var>, which moves <var>Y</var> again, and this term adds up all of those rounds. It equals 1 when αβ = 0, as in the concrete case below, where β = 0.</p>
+      </div>
+    </details>
+    <p>The outcome variable's own error <var>u</var> is now part of <var>X</var>.</p>
+    <div class="lab">A concrete case</div>
+    <p>Let leader behavior have no effect on team performance (β = 0), let team performance be a positive cause of the leader's rating (α = 1), and give each independent source, <var>u</var> and <var>e</var>, a variance of 1. Then <var>X</var> = <var>u</var> + <var>e</var>, so Var(<var>X</var>) = Var(<var>u</var>) + Var(<var>e</var>) = 2 and Cov(<var>X</var>, <var>u</var>) = Var(<var>u</var>) = 1, and OLS converges to 0 + 1/2 = 0.5. Because the true effect β = 0, all of that 0.5 is bias. That is a sizable effect of leader behavior built entirely from team performance feeding back into ratings of leader behavior.</p>
+    <p>To see how this happens for a single team, suppose a sales team has a good quarter because a competitor's product recall sends customers its way, something the leader had nothing to do with. Because the recall affects team performance but is not caused by the leader's behavior, it belongs to <var>u</var>, the part of performance that <var>X</var> does not explain. Let us suppose that the competitor's recall raises this team's performance by two standard deviations, so <var>u</var> = +2 (because <var>u</var> has a variance of 1, one standard deviation is 1 unit). Its performance <var>Y</var> rises by 2, and that success raises the leader's rating <var>X</var> by 2. The leader looks effective because the team did well, not the other way around.</p>
+    <p>The recall is only one example of what <var>u</var> contains. Every team experiences events outside its leader's control. Some help, like the recall, and some hurt, like losing a major client or a downturn in the team's region, so <var>u</var> is positive for some teams and negative for others. In every case, the event moves team performance and, because performance feeds back into ratings, the leader's rating in the same direction. Across all teams, that produces the covariance of 1 between <var>X</var> and <var>u</var> computed above, which OLS turns into a slope of 0.5 even though leader behavior has no effect on performance.</p>
+    <figure class="fig">
+      <svg viewBox="0 0 560 220" role="img" aria-label="Path diagram: team performance causes the leader's rating with a coefficient of 1; leader behavior has no effect on team performance">
+        <defs>
+          <marker id="sm-u" viewBox="0 0 10 10" refX="2" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path class="mk-u" d="M0 0 L10 5 L0 10 z"/></marker>
+          <marker id="sm-off" viewBox="0 0 10 10" refX="2" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path class="mk-off" d="M0 0 L10 5 L0 10 z"/></marker>
+          <marker id="sm-m" viewBox="0 0 10 10" refX="2" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path style="fill:var(--muted)" d="M0 0 L10 5 L0 10 z"/></marker>
+        </defs>
+        <path class="edge off" style="stroke-width:1.5" d="M152 106 Q280 40 403 104" marker-end="url(#sm-off)"/>
+        <path class="edge e-u" style="stroke-width:3" d="M408 134 Q280 200 157 136" marker-end="url(#sm-u)"/>
+        <path class="edge" style="stroke:var(--muted);stroke-width:1" d="M54 120 L97 120" marker-end="url(#sm-m)"/>
+        <path class="edge" style="stroke:var(--muted);stroke-width:1" d="M506 120 L463 120" marker-end="url(#sm-m)"/>
+        <g class="node"><circle cx="130" cy="120" r="26"/><text class="n" x="130" y="120">X</text><text class="c" x="130" y="74">leader rating</text></g>
+        <g class="node"><circle cx="430" cy="120" r="26"/><text class="n" x="430" y="120">Y</text><text class="c" x="430" y="74">team performance</text></g>
+        <g class="node err"><circle cx="40" cy="120" r="14"/><text class="n" x="40" y="120">e</text></g>
+        <g class="node err"><circle cx="520" cy="120" r="14"/><text class="n" x="520" y="120">u</text></g>
+        <text class="elab off" x="280" y="60" text-anchor="middle">β = 0 (no causal effect)</text>
+        <text class="elab" x="280" y="190" text-anchor="middle">α = 1</text>
+      </svg>
+      <figcaption><var>u</var> and <var>e</var> each have variance 1, so Var(<var>X</var>) = 1 + 1 = 2. The only connection between the leader's rating and team performance is the reverse path <var>Y</var> → <var>X</var>, which carries the outcome variable's error <var>u</var> into <var>X</var>. OLS can detect that high ratings and high performance go together, but it cannot detect which way the arrow runs. It cannot distinguish the reverse path from the true causal path, which is zero in this case, so it reports Cov(<var>X</var>, <var>u</var>)/Var(<var>X</var>) = 1/2 = 0.5 as the effect of leader behavior.</figcaption>
+    </figure>
+    <div class="lab">A more realistic version</div>
+    <p>In most applications the hypothesized effect is real, and reverse causation inflates it rather than creating it from nothing. Suppose leader behavior does improve team performance (β = .5), performance still feeds back into the leader's rating (α = 1), and <var>u</var> and <var>e</var> again each have a variance of 1. Solving for <var>X</var> now gives</p>
+    <div class="deriv"><div><var>X</var> = (<var>u</var> + <var>e</var>) / (1 − .5) = 2<var>u</var> + 2<var>e</var>, <span class="c" style="margin-left:0">so</span> Var(<var>X</var>) = 8 <span class="c" style="margin-left:0">and</span> Cov(<var>X</var>, <var>u</var>) = 2</div>
+      <div>plim β̂<sub>OLS</sub> = β + Cov(<var>X</var>, <var>u</var>) / Var(<var>X</var>) = .5 + 2/8 = .75</div></div>
+    <p>The leader's behavior really does help, but OLS overstates its effect by half: it reports .75 when the true effect is .50. The feedback multiplier 1/(1 − αβ) is now 2 rather than 1, because each round of influence between performance and the rating amplifies the next, which doubles how much of the outcome variable's error ends up in <var>X</var>.</p>
+    <div class="lab">Why this causes bias</div>
+    <p>Whatever pushes <var>Y</var> up feeds back into <var>X</var>. High-<var>X</var> cases are disproportionately those with positive errors in the outcome equation, so the regression conflates the effect of <var>X</var> on <var>Y</var> with the effect of <var>Y</var> on <var>X</var>. This is the textbook case for IV: a variable that has a causal effect on <var>X</var> but does not appear in the equation for <var>Y</var>.</p>
+  </article>
+
+  <article class="src">
+    <h3>Endogeneity source #3: Measurement error in <var>X</var></h3>
+    <p class="sum">Even purely random error in the measured <var>X</var> is enough to make <var>X</var> endogenous and bias OLS. Suppose a researcher hypothesizes that an employee's conscientiousness (<var>X</var>) is a positive cause of job performance (<var>Y</var>) and measures conscientiousness with a self-report survey. Suppose that <var>X</var>*, the survey score, has two components: the true score <var>X</var> and measurement error <var>w</var>, so <var>X</var>* = <var>X</var> + <var>w</var>. The error is purely random: it has a mean of zero and is uncorrelated with <var>X</var> and with <var>u</var>.</p>
+    <p>Start from the data-generating model. Performance depends on the true score, not on the survey score:</p>
+    <div class="deriv"><div><var>Y</var> = β<var>X</var> + <var>u</var>, &nbsp;&nbsp; <var>X</var>* = <var>X</var> + <var>w</var></div></div>
+    <p>The researcher cannot observe <var>X</var>, only <var>X</var>*, so the regression has to use <var>X</var>*. Solving the second equation for the true score gives <var>X</var> = <var>X</var>* − <var>w</var>. Substituting that into the first equation gives the regression the researcher actually runs:</p>
+    <div class="deriv"><div><var>Y</var> = β(<var>X</var>* − <var>w</var>) + <var>u</var> = β<var>X</var>* + (<var>u</var> − β<var>w</var>) <span class="c">so the regression error is <var>u</var> − β<var>w</var></span></div></div>
+    <p>Nothing about <var>Y</var> has changed; it is the same equation written in terms of <var>X</var>*. The error term in the regression of <var>Y</var> on <var>X</var>* should just be <var>u</var>, the part of performance that conscientiousness does not explain. Instead, it also includes −β<var>w</var>, the measurement error scaled by the effect. Because <var>X</var>* contains +<var>w</var> and the error contains −β<var>w</var>, the two share a component, causing Cov(<var>X</var>*, <var>u</var> − β<var>w</var>) ≠ 0. Using covariance algebra, we can derive that covariance and the value OLS converges to as</p>
+    <div class="deriv"><div>Cov(<var>X</var>*, <var>u</var> − β<var>w</var>) = −β·Var(<var>w</var>)</div>
+      <div>plim β̂<sub>OLS</sub> = β · <span class="frac"><span>Var(<var>X</var>)</span><span>Var(<var>X</var>) + Var(<var>w</var>)</span></span></div></div>
+    <details class="why-box">
+      <summary>Show how these are derived</summary>
+      <div class="stack" style="gap:10px">
+        <p><strong>The covariance.</strong> Expand the covariance term by term, using the fact that covariance is linear:</p>
+        <div class="deriv"><div>Cov(<var>X</var> + <var>w</var>, <var>u</var> − β<var>w</var>) = Cov(<var>X</var>, <var>u</var>) − β·Cov(<var>X</var>, <var>w</var>) + Cov(<var>w</var>, <var>u</var>) − β·Cov(<var>w</var>, <var>w</var>)</div></div>
+        <p>The error <var>w</var> is uncorrelated with <var>X</var> and with <var>u</var>, and the true score is uncorrelated with <var>u</var>, so the first three terms are zero. The last is −β·Var(<var>w</var>), because a variable's covariance with itself is its variance.</p>
+        <p><strong>The OLS limit.</strong> The OLS slope converges to Cov(<var>X</var>*, <var>Y</var>) / Var(<var>X</var>*). The numerator is Cov(<var>X</var> + <var>w</var>, β<var>X</var> + <var>u</var>) = β·Var(<var>X</var>), because only the true score is related to <var>Y</var>. The denominator is Var(<var>X</var>) + Var(<var>w</var>), because the true score and the error are uncorrelated. Dividing gives the formula above. The fraction Var(<var>X</var>) / [Var(<var>X</var>) + Var(<var>w</var>)] is the reliability of <var>X</var>*, the share of its variance that is true-score variance.</p>
+      </div>
+    </details>
+    <div class="lab">A concrete case</div>
+    <p>Let conscientiousness have a real effect on performance (β = .5), give the true score a variance of 1, and give the measurement error a variance of .25. Then Var(<var>X</var>*) = 1 + .25 = 1.25, the reliability of the survey is 1 / 1.25 = .80, and OLS converges to .5 × .80 = .40. Because the true effect β = .5, OLS understates it by .10, or 20%.</p>
+    <p>That is a sizable underestimate produced by a scale whose reliability many researchers would consider acceptable. OLS would lead us to conclude that a 1-point increase in conscientiousness produces a .40 increase in performance, when the true effect is .50.</p>
+    <p>To see how this happens for a single employee, suppose an employee's true conscientiousness is one standard deviation above the mean (<var>X</var> = 1), but on the day of the survey they describe themselves generously, so <var>w</var> = +0.5 and their survey score is <var>X</var>* = 1.5. Set <var>u</var> = 0 to keep the arithmetic simple. Their performance depends on their true score, so <var>Y</var> = .5 × 1 = .5. The regression equation in <var>X</var>* predicts .5 × 1.5 = .75, so the error must be −.25, which is −β<var>w</var>. The β<var>X</var>* term gives this employee credit for half a unit of conscientiousness they do not have, so their actual performance falls below what the regression predicts, and their regression error is negative (−.25). Employees whose survey scores are too high end up with negative errors, and that pairing is what makes <var>X</var>* and the error term negatively correlated.</p>
+    <p>Every employee's survey score contains some error, positive for some and negative for others. Employees whose scores are too high have negative errors in the regression, and employees whose scores are too low have positive ones. Across all employees, that produces Cov(<var>X</var>*, <var>u</var> − β<var>w</var>) = −.5 × .25 = −.125, which, divided by Var(<var>X</var>*) = 1.25, pulls the OLS slope from .50 down to .40.</p>
+    <figure class="fig">
+      <svg viewBox="0 0 560 300" role="img" aria-label="Path diagram: true conscientiousness causes job performance and the survey score; measurement error also affects the survey score; the regression uses the survey score, and the calculation shows how the true effect of .5 becomes an OLS slope of .40">
+        <defs>
+          <marker id="me-ink" viewBox="0 0 10 10" refX="2" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path class="mk-ink" d="M0 0 L10 5 L0 10 z"/></marker>
+          <marker id="me-m" viewBox="0 0 10 10" refX="2" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path style="fill:var(--muted)" d="M0 0 L10 5 L0 10 z"/></marker>
+        </defs>
+        <path class="edge e-ink" style="stroke-width:3" d="M176 70 L397 70" marker-end="url(#me-ink)"/>
+        <path class="edge e-ink" style="stroke-width:2" d="M150 96 L150 147" marker-end="url(#me-ink)"/>
+        <path class="edge" style="stroke:var(--muted);stroke-width:1" d="M64 180 L117 180" marker-end="url(#me-m)"/>
+        <path class="edge" style="stroke:var(--muted);stroke-width:1" d="M506 70 L463 70" marker-end="url(#me-m)"/>
+        <line class="ols-dot" x1="174" y1="170" x2="408" y2="86"/>
+        <g class="node latent"><circle cx="150" cy="70" r="26"/><text class="n" x="150" y="70">X</text><text class="c" x="150" y="34">true score · unmeasured</text></g>
+        <g class="node"><circle cx="150" cy="180" r="26"/><text class="n" x="150" y="180">X*</text><text class="c" x="150" y="224">survey score</text></g>
+        <g class="node"><circle cx="430" cy="70" r="26"/><text class="n" x="430" y="70">Y</text><text class="c" x="430" y="34">job performance</text></g>
+        <g class="node err"><circle cx="50" cy="180" r="14"/><text class="n" x="50" y="180">w</text></g>
+        <g class="node err"><circle cx="520" cy="70" r="14"/><text class="n" x="520" y="70">u</text></g>
+        <text class="elab" x="288" y="60" text-anchor="middle">β = .5</text>
+        <text class="elab" x="162" y="126" text-anchor="start">1</text>
+        <text class="elab ols-lab" x="345" y="172" text-anchor="middle">OLS slope of Y on X* = .40</text>
+        <text class="vlab" x="116" y="74" text-anchor="end">Var(X) = 1</text>
+        <text class="vlab" x="50" y="212" text-anchor="middle">Var(w) = .25</text>
+        <text class="vlab" x="150" y="242" text-anchor="middle">Var(X*) = 1 + .25 = 1.25</text>
+        <rect class="calc-box" x="262" y="198" width="290" height="94" rx="6"/>
+        <text class="calc" x="276" y="220">Cov(X*, Y) = β·Var(X) = .5 × 1 = .5</text>
+        <text class="calc" x="276" y="240">Var(X*)    = 1.25</text>
+        <text class="calc" x="276" y="260">OLS slope  = .5 / 1.25 = .40</text>
+        <text class="calc" x="276" y="280">           = β × reliability = .5 × .80</text>
+      </svg>
+      <figcaption>The true score <var>X</var> has variance 1 and the measurement error <var>w</var> has variance .25, so the reliability of <var>X</var>* is .80. Performance depends on the true score, but the regression (dotted line) can use only the survey score. Part of the variation in <var>X</var>* is error that has no effect on <var>Y</var>, so OLS spreads the effect over all of the variation in <var>X</var>* and reports .5 × .80 = .40, understating the true effect of .50. The box shows the calculation: only the true-score part of <var>X</var>* contributes to its covariance with <var>Y</var>, because the error part is unrelated to <var>Y</var>, but OLS divides that covariance by the full variance of <var>X</var>*, error included.</figcaption>
+    </figure>
+    <div class="lab">Why this causes bias</div>
+    <p>Measurement error adds variation to <var>X</var>* that has nothing to do with <var>Y</var>. The OLS slope is computed by dividing the covariance of <var>X</var>* with <var>Y</var> by the total variance of <var>X</var>*. Only the true-score part of <var>X</var>* contributes to that covariance, because the error part, <var>w</var>, is unrelated to <var>Y</var>. But both parts contribute to the variance, so the denominator is inflated by the error variance while the numerator is not. The slope therefore shrinks toward zero by a factor equal to the reliability of <var>X</var>*. This is why random measurement error in <var>X</var> always biases OLS toward zero, a pattern called attenuation, and why the size of the bias depends on reliability. For the same reason, correcting an unstandardized slope for attenuation means dividing the observed slope by the reliability (Fuller, 1987). For a correlation, the familiar correction divides by the square root of the reliability instead (Spearman, 1904), because a correlation divides the covariance by the standard deviation of <var>X</var>* rather than its variance. IV offers another remedy: a second, independently measured indicator of <var>X</var> can serve as an instrument for <var>X</var>*, because its measurement error is uncorrelated with <var>w</var>.</p>
+  </article>
+
+  <article class="src">
+    <h3>Endogeneity source #4: Selection</h3>
+    <p class="sum">Units choose, or are chosen into, levels of <var>X</var> for reasons tied to their outcomes, as when the most motivated employees sign up for a voluntary sales training program and the outcome is their sales revenue over the following year.</p>
+    <p>Start from the data-generating model. <var>X</var> is now binary (completed the training or not), <var>Y</var> is next year's sales revenue, and the decision to enroll depends on the same motivation that also drives sales and is therefore part of <var>u</var>:</p>
+    <div class="deriv"><div><var>Y</var> = β<var>X</var> + <var>u</var>, &nbsp;&nbsp; <var>X</var> = 1 if λ<var>u</var> + <var>e</var> &gt; 0, otherwise 0</div></div>
+    <p>With a binary <var>X</var>, the OLS slope is the difference in group means:</p>
+    <div class="deriv"><div>β̂ = <var>Ȳ</var><sub>1</sub> − <var>Ȳ</var><sub>0</sub> &nbsp;→&nbsp; β + [E(<var>u</var> | <var>X</var> = 1) − E(<var>u</var> | <var>X</var> = 0)]</div></div>
+    <p>When λ &gt; 0, salespeople with high <var>u</var>, those who would sell more regardless, are more likely to enroll, so the bracketed term is positive.</p>
+    <div class="lab">A concrete case</div>
+    <p>The training has no effect on sales (β = 0). The salespeople who would have posted higher sales anyway, because they are more motivated, are the ones who sign up. The next year, the trained group's average sales revenue exceeds the untrained group's, and OLS reports that revenue gap as the effect of the training.</p>
+    <div class="lab">Why this causes bias</div>
+    <p>The selection rule puts <var>u</var> inside <var>X</var>. Because <var>X</var> is partly a function of <var>u</var>, Cov(<var>X</var>, <var>u</var>) ≠ 0, for the same reason as in simultaneity.</p>
+    <div class="lab">A related problem: selecting the sample on Y</div>
+    <p>Now suppose enrollment was random, but the company dismisses any salesperson whose annual sales revenue falls below a quota <var>c</var>, and you can study only the salespeople still on the payroll. Staying employed requires</p>
+    <div class="deriv"><div>β<var>X</var> + <var>u</var> &gt; <var>c</var> &nbsp;→&nbsp; <var>u</var> &gt; <var>c</var> − β<var>X</var></div></div>
+    <p>If the training works (β &gt; 0), the amount of sales revenue a salesperson must generate from sources other than the training, <var>u</var>, to meet the quota differs by group. Untrained salespeople keep their jobs only if <var>u</var> &gt; <var>c</var>, so the untrained ones who remain are those with unusual motivation, a strong territory, or good luck. Trained salespeople need only <var>u</var> &gt; <var>c</var> − β, because the training carries part of the load, so some trained survivors have quite ordinary <var>u</var>.</p>
+    <p>Among the salespeople who remain, the untrained group has the higher average <var>u</var>, so the error is negatively correlated with <var>X</var> even though no one chose training based on <var>u</var>. Comparing survivors understates the training's effect on sales revenue, and a modest real effect can vanish. Here the bias runs opposite to the self-selection case, and it is created by the researcher keeping only cases above a threshold on <var>Y</var>.</p>
+    <p>This is related to the restriction-of-range problem in personnel selection, with one key difference. Selecting cases on the predictor, as when only hired applicants are studied, attenuates correlations but leaves the unstandardized slope unbiased. Selecting cases on the outcome, as here, biases the slope as well, because it makes the retained errors correlated with <var>X</var>.</p>
+  </article>
+  <h3 style="margin-top:6px">Why endogeneity has to be dealt with</h3>
+  <ul class="why">
+    <li><strong>It is not sampling error.</strong> More data shrink the standard error around the biased value. A large study yields a narrow confidence interval around the wrong number.</li>
+    <li><strong>It can change the direction, not just the magnitude.</strong> Confounding can manufacture an effect where none exists, hide a real one, or flip its sign.</li>
+    <li><strong>Adding control variables helps only with confounders you have measured.</strong> Including a confounder as a covariate removes the bias it causes, provided it is measured well. Control variables cannot remove bias from confounders you did not measure, from <var>Y</var> causing <var>X</var>, or from measurement error in <var>X</var>. Reviews of published management and leadership research have found that most studies making causal claims leave these threats unaddressed (Antonakis et al., 2010).</li>
+  </ul>
+</section>
+
+<section class="block" id="instruments">
+  <div class="secnum">§2 · A STATISTICAL FIX</div>
+  <h2>An instrument isolates the clean part of <var>X</var></h2>
+  <div class="prose stack">
+    <p>I should begin by saying that the best way to deal with a design flaw is to use a better design. Statistical solutions to design flaws should always take a back seat. That said, sometimes flaws are baked in. If the predictor is, say, an attitude, then I can't really assign people to an attitude condition. As a result, there will always be an endogeneity issue. What follows is a statistical fix, which means that it is better than nothing and worse than a design fix.</p>
+    <p>An instrument <var>Z</var> is a variable that is correlated with <var>X</var>, usually because it has a causal effect on <var>X</var>, and is related to <var>Y</var> only through <var>X</var>: it has no direct effect on <var>Y</var> and shares no common causes with <var>Y</var>. The variation in <var>X</var> that <var>Z</var> causes is unrelated to <var>u</var>, so this <var>Z</var>-driven portion of <var>X</var> can be used to estimate β<sub>1</sub> even when the rest of <var>X</var> is contaminated. Two conditions must hold:</p>
+  </div>
+  <div class="cond">
+    <div><div class="tag ok">Testable</div><h3>1. Relevance</h3><p>Cov(<var>Z</var>, <var>X</var>) ≠ 0. The instrument is correlated with the treatment, strongly enough to matter. Identification requires only this correlation; a causal effect of <var>Z</var> on <var>X</var> is the usual justification but not a requirement. A <strong>strong</strong> instrument is one that predicts <var>X</var> well, so that the first-stage regression of <var>X</var> on <var>Z</var> has a large <var>R</var>² and a large <var>F</var> statistic. A <strong>weak</strong> instrument predicts <var>X</var> poorly. Strength matters in two ways: the size of the first-stage relationship determines how much a small violation of exogeneity costs, and the first-stage <var>F</var>, which reflects the instrument's strength and the sample size together, determines whether 2SLS estimates and intervals are reliable.</p></div>
+    <div><div class="tag no">Only partly testable</div><h3>2. Exogeneity</h3><p>Cov(<var>Z</var>, <var>u</var>) = 0. The instrument is uncorrelated with the error term, so it is related to <var>Y</var> only through its relationship with <var>X</var>. In causal terms, this usually means two things: <var>Z</var> shares no unobserved causes with <var>Y</var>, as when it is randomly assigned, and <var>Z</var> has no direct effect on <var>Y</var> (the <em>exclusion restriction</em>).</p><p>With more instruments than endogenous regressors, overidentification tests (§4) can check whether the instruments agree with one another, but they cannot confirm that any of them is valid. With one instrument per endogenous regressor, no test is possible, and exogeneity rests on the argument for the design.</p></div>
+  </div>
+  <div class="prose stack">
+    <p>With one instrument and one endogenous regressor, the instrumental-variables estimate of β<sub>1</sub>, written β̂<sub>IV</sub>, is a ratio of two regression slopes: the slope from regressing <var>Y</var> on <var>Z</var> (the reduced form) divided by the slope from regressing <var>X</var> on <var>Z</var> (the first stage).</p>
+    <p><strong>How the formula matches the two regressions.</strong> Write the two regressions, each with <var>Z</var> as the only predictor. A regression slope is the covariance of predictor and outcome divided by the predictor's variance:</p>
+  </div>
+  <div class="deriv prose">
+    <div class="tall">First stage: &nbsp;<var>X</var> = π<sub>0</sub> + π<var>Z</var> + <var>v</var>, &nbsp;&nbsp; π̂ = <span class="frac"><span>Cov(<var>Z</var>, <var>X</var>)</span><span>Var(<var>Z</var>)</span></span></div>
+    <div class="tall">Reduced form: &nbsp;<var>Y</var> = ρ<sub>0</sub> + ρ<var>Z</var> + <var>e</var>, &nbsp;&nbsp; ρ̂ = <span class="frac"><span>Cov(<var>Z</var>, <var>Y</var>)</span><span>Var(<var>Z</var>)</span></span></div>
+  </div>
+  <p class="prose">β̂<sub>IV</sub> is the reduced-form slope divided by the first-stage slope. Var(<var>Z</var>) appears in both denominators, so it cancels:</p>
+  <div class="deriv prose">
+    <div class="tall">β̂<sub>IV</sub> = <span class="frac"><span>ρ̂</span><span>π̂</span></span> = <span class="frac"><span>Cov(<var>Z</var>, <var>Y</var>) / Var(<var>Z</var>)</span><span>Cov(<var>Z</var>, <var>X</var>) / Var(<var>Z</var>)</span></span> = <span class="frac"><span>Cov(<var>Z</var>, <var>Y</var>)</span><span>Cov(<var>Z</var>, <var>X</var>)</span></span></div>
+  </div>
+  <p class="prose">So β̂<sub>IV</sub>, the instrumental-variables estimate of the effect of <var>X</var> on <var>Y</var>, is the covariance of <var>Z</var> with <var>Y</var> divided by the covariance of <var>Z</var> with <var>X</var>. In large samples it converges to the causal effect plus a bias term:</p>
+  <div class="eq prose">β̂<sub>IV</sub> = <span class="frac"><span>Cov(<var>Z</var>, <var>Y</var>)</span><span>Cov(<var>Z</var>, <var>X</var>)</span></span> &nbsp;→&nbsp; β<sub>1</sub> + <span class="frac"><span>Cov(<var>Z</var>, <var>u</var>)</span><span>Cov(<var>Z</var>, <var>X</var>)</span></span>
+    <small>If the instrument is truly exogenous, the second term is zero and plim β̂<sub>IV</sub> = β<sub>1</sub>: in large samples, the IV estimate converges to the causal effect.</small></div>
+  <div class="prose stack">
+    <p><strong>Why the ratio equals the causal effect.</strong> Because <var>Z</var> affects <var>Y</var> only through <var>X</var>, every unit of change in <var>Y</var> that <var>Z</var> produces travels through <var>X</var>. If a one-unit increase in <var>Z</var> raises <var>X</var> by 0.5 and raises <var>Y</var> by 0.25, then 0.5 units of <var>X</var> produced 0.25 units of <var>Y</var>, so one unit of <var>X</var> produces 0.25 / 0.5 = 0.5 units of <var>Y</var>.</p>
+    <p><strong>Where the second expression comes from.</strong> The second expression shows what the IV estimate converges to in large samples, and it comes from rewriting the numerator, Cov(<var>Z</var>, <var>Y</var>). Because <var>Y</var> = β<sub>0</sub> + β<sub>1</sub><var>X</var> + <var>u</var>, the covariance of <var>Z</var> with <var>Y</var> splits into two pieces, Cov(<var>Z</var>, <var>Y</var>) = β<sub>1</sub>·Cov(<var>Z</var>, <var>X</var>) + Cov(<var>Z</var>, <var>u</var>); the intercept β<sub>0</sub> drops out because a constant has no covariance with anything. The first piece is the part of the <var>Z</var>–<var>Y</var> covariance that runs through <var>X</var>, and the second is any covariance between <var>Z</var> and the error term. Dividing both pieces by the denominator, Cov(<var>Z</var>, <var>X</var>), gives β<sub>1</sub> + Cov(<var>Z</var>, <var>u</var>) / Cov(<var>Z</var>, <var>X</var>): the true effect plus a bias term. The relevance condition keeps the denominator away from zero, and the exogeneity condition makes the numerator of the bias term zero. Compare the OLS formula in §1. Its bias term has Cov(<var>X</var>, <var>u</var>) in the numerator, and when <var>X</var> is endogenous nothing in the OLS calculation can make that zero. IV replaces it with Cov(<var>Z</var>, <var>u</var>), which a well-chosen instrument does make zero.</p>
+  </div>
+  <h3 style="margin-top:6px">Why good instruments matter</h3>
+  <p class="prose">IV removes the bias of OLS only if the instrument is good: strong, meaning that it predicts <var>X</var> well, and truly exogenous. The two requirements interact, because a weakness in one magnifies a flaw in the other. If the instrument is slightly invalid (i.e., Cov(<var>Z</var>, <var>u</var>) is small but not zero, because <var>Z</var> has a minor direct effect on <var>Y</var> or a weak link to an omitted cause of <var>Y</var>), the size of the bias in β̂<sub>IV</sub> depends on the denominator, Cov(<var>Z</var>, <var>X</var>), which measures the first stage: how strongly the instrument moves <var>X</var>. When the first stage is weak, that denominator is close to zero, and dividing by it turns a small violation into a large bias.</p>
+  <p class="prose">To see how much this matters, return to the example above, in which a one-unit increase in <var>Z</var> raised <var>X</var> by 0.5. If <var>Z</var> has a variance of 1, that first-stage slope is also Cov(<var>Z</var>, <var>X</var>) = 0.50. Now suppose the instrument is slightly invalid, with Cov(<var>Z</var>, <var>u</var>) = 0.02. The bias is 0.02 / 0.50 = 0.04, small next to the true effect of 0.5. For comparison, suppose <var>X</var> is endogenous enough that OLS has a bias of Cov(<var>X</var>, <var>u</var>) / Var(<var>X</var>) = 0.30 / 1.50 = 0.20, so OLS converges to 0.70 while IV converges to 0.54. Even though this instrument is slightly invalid, its bias is one fifth the size of the OLS bias, and IV is still much the better choice.</p>
+  <p class="prose">Now let's suppose that, in addition to being slightly invalid, the instrument were also weak, raising <var>X</var> by only 0.05 per unit of <var>Z</var>. Now that small lack of exogeneity produces a bias of 0.02 / 0.05 = 0.40, nearly as large as the effect being estimated and twice the OLS bias. An instrument that is both weak and slightly invalid can therefore produce an estimate more biased than the OLS estimate it was meant to correct, so choosing a strong, convincingly exogenous instrument is crucial to the success of an IV analysis.</p>
+  <p class="prose">Perfect exogeneity is difficult to achieve and can never be fully verified, so most instruments are likely to be at least slightly invalid. Relevance, by contrast, can be measured, and the researcher often has more control over it, for example by designing a more compelling encouragement or collecting a larger sample. Because a strong instrument limits how much a small violation of exogeneity can distort the estimate, choosing a strong instrument is the researcher's best protection against the violations that cannot be ruled out, provided the gain in strength does not come at the cost of a less plausible case for exogeneity.</p>
+  <div class="prose stack">
+    <p><strong>Two-stage least squares</strong> generalizes this to several instruments. Stage 1 regresses <var>X</var> on the instruments and keeps the fitted values <var>X̂</var>. These are each case's predicted value of <var>X</var> from that regression, for example <var>X̂</var> = π̂<sub>0</sub> + π̂<sub>1</sub><var>Z</var><sub>1</sub> + π̂<sub>2</sub><var>Z</var><sub>2</sub> with two instruments. <var>X̂</var> is the part of <var>X</var> that the instruments explain. Because the instruments are uncorrelated with <var>u</var>, so is <var>X̂</var>. The rest of <var>X</var>, the first-stage residual <var>X</var> − <var>X̂</var>, holds all of the variation that is correlated with <var>u</var>, and 2SLS discards it. Stage 2 regresses <var>Y</var> on <var>X̂</var>. You can run the two stages as separate regressions and get the correct 2SLS coefficient, but the standard errors from the stage-2 output will be wrong. That regression computes its residuals as <var>Y</var> − β̂<var>X̂</var>, using the fitted values. The correct residuals are <var>Y</var> − β̂<var>X</var>, using the observed <var>X</var>, because that is the variable in the model being estimated. Dedicated 2SLS routines (e.g., <span class="mono">ivreg</span> in R, <span class="mono">ivregress</span> in Stata) use the observed <var>X</var> and report correct standard errors.</p>
+    <h3 style="margin-top:10px">Choosing sets of instruments</h3>
+    <p>When more than one credible instrument is available, an overidentified model, with more instruments than endogenous regressors, has three advantages over a just-identified one.</p>
+    <ul class="examples">
+      <li><strong>It allows a test.</strong> With a single instrument, the exclusion restriction cannot be checked against the data at all. With two or more, the overidentification tests in §4 can ask whether the instruments imply the same value of β, which is the only way the data can speak to exogeneity.</li>
+      <li><strong>It can add precision.</strong> If each instrument explains part of the variation in <var>X</var> that the others do not, the first stage is stronger and the 2SLS estimate is more precise. Instruments that add little do the opposite: many weak instruments make the first stage weaker per instrument and pull 2SLS toward OLS.</li>
+      <li><strong>It shows how much the result depends on any one instrument.</strong> Reporting the estimate from each instrument on its own lets readers see whether the conclusion rests on a single source of variation.</li>
+    </ul>
+    <p>These advantages depend on what the instruments have in common. The overidentification tests detect only disagreement, so they can catch an invalid instrument only if its bias differs from the others'. Instruments that work through the same mechanism tend to share the same possible violations, such as several lags of one variable or one instrument interacted with different groups. If one is invalid, the others are likely to be invalid in the same direction, so they agree on the same wrong value and the test stays silent. Instruments that work through different mechanisms are each vulnerable to different violations, which makes it unlikely that their biases would match. When instruments like these agree, the agreement is genuinely informative.</p>
+    <h3 style="margin-top:10px">Examples of instruments</h3>
+    <p>Classic instruments include:</p>
+    <ul class="examples">
+      <li><strong>Quarter of birth as an instrument for years of schooling</strong>, in estimating the effect of schooling on earnings (Angrist &amp; Krueger, 1991). Quarter of birth is the quarter of the calendar year in which a person was born: January–March, April–June, July–September, or October–December. Because children start school by a calendar cutoff and may leave school on their 16th birthday, students born early in the year can leave with slightly less schooling than those born late in the year.<span class="exo"><em>Why it should be exogenous:</em> the season in which a person is born is essentially a matter of chance with respect to their ability, motivation, and family background, the omitted variables that bias OLS. There is also no obvious reason that being born in March rather than November would affect adult earnings except through the extra months of school.</span></li>
+      <li><strong>The sex of the departing CEO's firstborn child as an instrument for family CEO succession</strong>, in estimating the effect of handing a family firm to a family member rather than an outside professional on firm performance (Bennedsen, Nielsen, Pérez-González, &amp; Wolfenzon, 2007). Using data on successions in Danish family firms, the authors found that firms were more likely to pass to a family member when the departing CEO's firstborn child was a son. The IV estimates showed that family successions sharply reduce operating profitability, a larger decline than OLS suggested.<span class="exo"><em>Why it should be exogenous:</em> a child's sex is determined by chance at conception, so it cannot be correlated with the founder's skill, the firm's prospects, or the industry conditions that might also drive both the succession decision and later performance. The exclusion restriction requires that the firstborn's sex affect firm performance only through who becomes CEO, which is plausible but not guaranteed. For example, it would fail if the sex of a founder's children changed family involvement in the business in other ways.</span></li>
+      <li><strong>Random assignment to an encouragement as an instrument for taking up a treatment</strong>, in settings where people cannot be forced to take the treatment. The researcher randomly chooses who receives an encouragement, such as an invitation, a reminder, or a voucher, and each person then decides whether to take part. For example, a randomly selected half of the sales staff receive a personal invitation to the voluntary training program from the selection example in §1. In that example, the outcome (<var>Y</var>) is each salesperson's sales revenue over the following year, the treatment (<var>X</var>) is completing the training, and the most motivated salespeople choose to enroll. Because motivation also raises sales, it is part of <var>u</var>, and OLS overstates the effect of the training. Enrollment (<var>X</var>) is still self-selected and endogenous. It is relevant if invited employees enroll at a higher rate.<span class="exo"><em>Why it should be exogenous:</em> the invitation (<var>Z</var>) is assigned by a coin flip, so invited and uninvited employees are alike, on average, in motivation, skill, and territory, and <var>Z</var> cannot be correlated with anything in <var>u</var>. Randomization does not guarantee exclusion, though. The invitation must affect sales only by changing who enrolls, which would fail if, for example, a personal invitation from management motivated employees to sell more whether or not they took the training.</span></li>
+    </ul>
+    <h4 class="sub">Pairs of instruments</h4>
+    <p>Consider adding a second instrument to the training invitation. The invitation increases enrollment through attention from management, and its most plausible violation is that this attention motivates employees to sell more whether or not they enroll.</p>
+    <ul class="examples">
+      <li><strong>A good second instrument: distance from the employee's office to the training site.</strong> Employees whose offices are farther from the site are less likely to enroll, because attending costs them more time and travel. This mechanism is unrelated to management's attention, and so are its possible violations. The concern with distance is a shared cause, since offices near the training site may be in larger markets where sales are higher, which is addressed by controlling for market size or region. Because the two instruments are vulnerable to different problems, a violation of one would be unlikely to bias the other in the same direction and by the same amount, so the overidentification test has a real chance of detecting it.</li>
+      <li><strong>A bad second instrument: a randomly assigned reminder email from management.</strong> The reminder also increases enrollment, but through the same mechanism as the invitation, attention from management. If that attention motivates employees to sell more on its own, it does so for both instruments, so both would be invalid in the same direction. The two would then imply similar wrong values of β, the overidentification test would very likely retain H₀, and the agreement would look like support for instruments that share a single flaw. Randomizing the reminder does not help, because randomization rules out a shared cause but not a direct effect.</li>
+    </ul>
+    <h3 style="margin-top:10px">The trade-offs of IV: precision and scope</h3>
+    <h4 class="sub">Trade-off 1: Precision</h4>
+    <p>The cost of IV is precision. OLS uses all of the variation in <var>X</var> to estimate β<sub>1</sub>. 2SLS uses only the part that the instruments explain, <var>X̂</var>, and throws the rest away. Estimating a slope from less variation in the predictor gives a noisier estimate, so the 2SLS standard error is larger. With one instrument and homoskedastic errors, the two sampling variances are approximately</p>
+  </div>
+  <div class="deriv prose">
+    <div class="tall">Var(β̂<sub>OLS</sub>) ≈ <span class="frac"><span>σ²<sub><var>u</var></sub></span><span><var>n</var>·Var(<var>X</var>)</span></span>, &nbsp;&nbsp; Var(β̂<sub>IV</sub>) ≈ <span class="frac"><span>σ²<sub><var>u</var></sub></span><span><var>n</var>·Var(<var>X</var>)·ρ²<sub><var>ZX</var></sub></span></span></div>
+    <div>SE(β̂<sub>IV</sub>) / SE(β̂<sub>OLS</sub>) ≈ 1 / |ρ<sub><var>ZX</var></sub>|</div>
+  </div>
+  <div class="prose stack">
+    <p>The only difference is the squared correlation between the instrument and <var>X</var>, which is the first-stage <var>R</var>². It acts like a reduction in sample size: IV with <var>n</var> cases is about as precise as OLS with <var>n</var>·ρ²<sub><var>ZX</var></sub> cases. If the instrument correlates .50 with <var>X</var>, the IV standard error is about twice the OLS standard error, and matching the precision of OLS takes four times the data. At ρ<sub><var>ZX</var></sub> = .30, the standard error is about 3.3 times larger and the sample must be about 11 times larger. At ρ<sub><var>ZX</var></sub> = .10, the standard error is ten times larger and the sample must be 100 times larger. This is another reason that strong instruments matter: a weak instrument not only magnifies any violation of exogeneity, it also leaves the IV estimate so imprecise that even a large sample may not be enough to say much about β<sub>1</sub>. In the lab below, the reading beside the estimates reports how many times wider the 2SLS interval is than the OLS interval.</p>
+    <p>This creates a genuine trade-off. OLS is precise but centered on the wrong value; IV is centered on the right value but spread widely around it. When endogeneity is severe, the bias of OLS dominates and IV is clearly better. When endogeneity is mild and the instrument is weak, an OLS estimate with a small bias can land closer to the truth, in a typical sample, than a 2SLS estimate with a large standard error. The Durbin–Wu–Hausman test in §4 asks whether the difference between the two estimates is large enough to justify paying that cost.</p>
+    <h5 class="subsub">Inference when the instrument may be weak: the Anderson–Rubin test</h5>
+    <p>A weak instrument causes a third problem besides bias and imprecision: the usual standard errors and confidence intervals for β̂<sub>IV</sub> stop working. Because β̂<sub>IV</sub> divides by an estimated first-stage covariance that can land close to zero, its sampling distribution becomes skewed and heavy-tailed rather than normal. A nominal 95% interval built as β̂<sub>IV</sub> ± 1.96·SE can then cover the true β far less than 95% of the time, while looking deceptively precise.</p>
+    <p>The <strong>Anderson–Rubin (AR) test</strong> (Anderson &amp; Rubin, 1949) avoids the problem by never dividing by the first stage. To test whether β equals some value β<sub>0</sub>, it subtracts β<sub>0</sub><var>X</var> from <var>Y</var> and regresses what is left, <var>Y</var> − β<sub>0</sub><var>X</var>, on the instruments. If β<sub>0</sub> is the true effect and the instruments are valid, what is left is just the error <var>u</var> plus a constant, so the instruments should explain none of it. The AR statistic is the ordinary <var>F</var> test of the instruments' coefficients in that regression, and its distribution under the null hypothesis is the same whether the instrument is strong or weak.</p>
+    <p>An AR confidence interval is the set of all values β<sub>0</sub> that the test does not reject. With a strong instrument, it is an ordinary interval close to the conventional one, so reporting it costs little. With a weak instrument, it widens, and it can even be unbounded, extending to infinity in one or both directions. An unbounded interval is the honest answer that the data cannot pin down β. With more instruments than endogenous regressors, the AR test checks β = β<sub>0</sub> and the exclusion restriction jointly, so an invalid instrument can lead it to reject every value.</p>
+    <p>AR inference does not make a weak instrument strong. It reports honestly how little a weak instrument reveals. The better remedy is a stronger instrument that is still convincingly exogenous, ideally obtained by strengthening the design, such as a more compelling encouragement, a larger sample, or a more reliable measure of <var>X</var>. Searching among candidate instruments for the one with the largest first-stage <var>F</var> is not a good remedy, because it selects partly on sampling noise and can make 2SLS bias worse (Hall, Rudebusch, &amp; Wilcox, 1996). The usual advice is to do both: seek the strongest valid instrument the design allows, and report AR intervals regardless (Andrews, Stock, &amp; Sun, 2019).</p>
+    <h4 class="sub">Trade-off 2: Scope</h4>
+    <p>The second trade-off concerns scope: whose effect IV estimates. Everything so far has assumed a single β<sub>1</sub> that applies to everyone. In practice effects are often <strong>heterogeneous</strong>: the training might raise one salesperson's revenue a great deal and another's hardly at all. When effects differ, IV does not estimate the average effect for the whole population. It estimates the average effect for the people whose <var>X</var> was changed by <var>Z</var>, called the <strong>local average treatment effect</strong>, or LATE (Imbens &amp; Angrist, 1994).</p>
+    <p>The reason is that the instrument can reveal an effect only where it moves the treatment. Return to the randomized training invitation example and suppose that salespeople fall into three groups:</p>
+    <ul class="examples">
+      <li><strong>Compliers</strong> enroll if invited and do not enroll otherwise. The invitation changes their <var>X</var>.</li>
+      <li><strong>Always-takers</strong> enroll whether or not they are invited, perhaps because they are highly motivated.</li>
+      <li><strong>Never-takers</strong> do not enroll whether or not they are invited.</li>
+    </ul>
+    <p class="fn">Note: The LATE result requires one further assumption, monotonicity: no one is a defier who would enroll without an invitation but refuse because of one. That is why the list has only three groups.</p>
+    <p>Because the invitation changes enrollment only for compliers, any difference in average sales between the invited and uninvited groups must come from them. Suppose 20% of uninvited salespeople enroll, compared with 50% of invited salespeople. Because the invitation is randomly assigned, both groups contain the same mix of types. The 20% who enroll without an invitation are the always-takers. In the invited group, the always-takers enroll too, along with the compliers, so the extra 30 percentage points are the compliers, and the remaining 50% are never-takers. Suppose also that invited salespeople sell $3,000 more on average than uninvited ones. The IV estimate is $3,000 / 0.30 = $10,000, the average effect of the training for compliers. It says nothing about always-takers, whose enrollment the invitation never changed, and they may benefit more or less from the training than compliers do.</p>
+    <p>Two practical consequences follow. First, the IV estimate answers a narrower question than OLS appears to: in the training example, the $10,000 estimate is the effect of the training for salespeople who enroll only when invited. It is not the effect for all salespeople, and it is not the effect for the motivated always-takers who would enroll on their own. If the company is deciding whether to send invitations to more of its staff, that is the effect it needs. If it is deciding whether to require training for everyone, including those who would never sign up, it is not.</p>
+    <p>Second, different instruments might move different people. For example, the salespeople whose enrollment changes in response to the invitation instrument, its compliers, need not be the same salespeople whose enrollment changes in response to some other instrument. A personal invitation from management might move salespeople who respond to attention from their bosses, while a voucher that covers travel to the training might move those for whom cost is the obstacle. Two valid instruments can therefore produce different estimates, because each estimates the training effect for its own group of compliers, and those groups may benefit from the training by different amounts. That also means a significant Sargan test in §4 may reflect heterogeneous effects rather than an invalid instrument.</p>
+  </div>
+</section>
+</div>
+
+<div class="wrap">
+<section class="block" id="lab" style="padding-bottom:12px">
+  <div class="secnum">§3 · THE LAB</div>
+  <h2>Set the true model, then see whether OLS and 2SLS recover β</h2>
+  <p class="prose">The data are simulated from the model below. Choose a scenario and then move a slider, and the sample redraws with the same random errors, so changes in the estimates come from the parameter you moved. The diagnostics in §4 and the repeated-sample study in §5 use these same settings.</p>
+</section>
+
+<div class="lab">
+  <aside class="controls" aria-label="Simulation settings">
+    <div class="cgroup">
+      <h3>Scenarios</h3>
+      <div class="presets" id="presets"></div>
+    </div>
+    <div class="dgp" aria-label="Data-generating process">U, Z₁, Z₂, v, ε ~ N(0,1), independent
+X = π₁Z₁ + π₂Z₂ + γU + v
+Y = βX + δU + φ₁Z₁ + φ₂Z₂ + ε
+With ICC &gt; 0, Z₁, Z₂, v, and ε are each
+√ICC·(group draw) + √(1−ICC)·(own draw)</div>
+    <div id="sliders" class="stack"></div>
+    <div class="cgroup">
+      <h3>Design</h3>
+      <div class="slider">
+        <div class="row"><label for="s-n">Sample size <var>n</var></label><output id="o-n" for="s-n"></output></div>
+        <input type="range" id="s-n" class="c-iv" min="0" max="6" step="1">
+      </div>
+      <div class="slider">
+        <div class="row"><label for="s-icc">Clustering (ICC)</label><output id="o-icc" for="s-icc"></output></div>
+        <input type="range" id="s-icc" class="c-iv" min="0" max="0.8" step="0.05">
+      </div>
+      <div class="note">Cases come in groups of 10, such as employees within teams. The ICC is the share of the variance of Z₁, Z₂, v, and ε that is shared within a group. At 0, cases are independent.</div>
+      <div class="seg" role="group" aria-label="Instruments used">
+        <button type="button" id="ins-1">Z₁ only<br><span style="opacity:.75">just-identified</span></button>
+        <button type="button" id="ins-2">Z₁ and Z₂<br><span style="opacity:.75">over-identified</span></button>
+      </div>
+      <button type="button" class="btn ghost" id="redraw">Draw a new sample</button>
+    </div>
+  </aside>
+
+  <div class="results">
+    <div class="panel">
+      <div class="panel-head"><h3>Path diagram</h3><p>Line width tracks coefficient size. Red dashed paths violate the exclusion restriction.</p></div>
+      <div class="svgbox"><svg id="dag" viewBox="0 0 600 320" role="img" aria-label="Path diagram of the simulated model"></svg></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h3>Estimates from this sample</h3><p id="samplenote"></p></div>
+      <div class="est-grid">
+        <div class="stack">
+          <div class="tbl-wrap"><table>
+            <thead><tr><th>Estimator</th><th>β̂</th><th>SE</th><th>95% CI</th><th>β̂ − β</th></tr></thead>
+            <tbody id="est-body"></tbody>
+          </table></div>
+          <svg id="forest" viewBox="0 0 560 130" role="img" aria-label="Point estimates and confidence intervals"></svg>
+        </div>
+        <div class="reading" id="reading" aria-live="polite"></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h3>The data</h3>
+        <div class="seg" role="group" aria-label="Horizontal axis" style="min-width:250px">
+          <button type="button" id="ax-x">Y against X</button>
+          <button type="button" id="ax-xh">Y against X̂</button>
+        </div>
+      </div>
+      <p style="font-size:.88rem;color:var(--muted)" id="axnote"></p>
+      <div class="svgbox"><svg id="scatter" viewBox="0 0 640 380" role="img" aria-label="Scatterplot of the simulated data with fitted lines"></svg></div>
+      <div class="legend" id="sc-legend"></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h3>What the first chart hides</h3><p>The same cases on the same axes, with the unobserved <var>U</var> revealed.</p></div>
+      <p style="font-size:.88rem;color:var(--muted)" id="axnote2"></p>
+      <div class="svgbox"><svg id="scatter2" viewBox="0 0 640 380" role="img" aria-label="The same scatterplot with points colored by the unobserved confounder and separate fits within each group"></svg></div>
+      <div class="legend" id="sc-legend2"></div>
+    </div>
+
+    <section class="stack" id="tests" style="gap:16px">
+      <div class="secnum">§4 · TESTING EXOGENEITY</div>
+      <h2>Three questions the data can partly answer</h2>
+      <p class="prose">Exogeneity comes up twice in an IV analysis: is the regressor <var>X</var> exogenous (if so, OLS is fine and IV is unnecessary), and are the instruments exogenous? The data can address the second question only indirectly, by checking whether the instruments agree with one another. The first-stage test checks the precondition that makes both answers trustworthy. Each of the three panels below reports one test on the current sample, followed by the answer to its question, which the simulation knows but real data never reveal.</p>
+      <div class="tests" id="testcards"></div>
+
+      <div class="panel" id="sens">
+        <div class="panel-head"><h3>Sensitivity analysis: what if exclusion fails?</h3><p>Optional. Uses the current sample.</p></div>
+        <div class="stack" style="font-size:.93rem;gap:10px">
+          <p>No test can confirm that an instrument is exogenous, so a careful analysis also asks how much the conclusion would change if it were not. This analysis follows the approach of Conley, Hansen, and Rossi (2012). You choose the largest direct effect of each instrument on <var>Y</var> that you consider plausible, in units of <var>Y</var> per standard deviation of <var>Z</var>. In the lab, this direct effect is exactly what the φ sliders set.</p>
+          <p>For every combination of direct effects between minus and plus that value, the analysis removes the assumed direct effect from <var>Y</var>, re-estimates β by 2SLS, and computes a 95% confidence interval. It then reports the range of those estimates and the union of their intervals, the set of values of β that are consistent with the data under at least one of the assumed violations. If the union excludes zero, the conclusion that <var>X</var> affects <var>Y</var> survives every violation in the range you chose.</p>
+        </div>
+        <div class="sens-ctl">
+          <div class="slider" style="flex:1;min-width:240px">
+            <div class="row"><label for="s-dmax">Largest plausible direct effect of each instrument on <var>Y</var></label><output id="o-dmax" for="s-dmax">0.10</output></div>
+            <input type="range" id="s-dmax" class="c-bad" min="0" max="0.5" step="0.01" value="0.1">
+          </div>
+          <button type="button" class="btn" id="sens-run">Run sensitivity analysis</button>
+        </div>
+        <div id="sens-out" class="stack" hidden></div>
+      </div>
+    </section>
+
+    <section class="stack" id="montecarlo" style="gap:16px">
+      <div class="secnum">§5 · REPEATED SAMPLES</div>
+      <h2>One sample can mislead. Many show the pattern.</h2>
+      <p class="prose">This study draws many independent samples at the current settings and records each estimate and test. The histograms show the sampling distributions of OLS and 2SLS. The rates below show how often each test rejects, which is its size when the null is true and its power when it is false. It reruns automatically when the settings change.</p>
+      <div class="panel">
+        <div class="mc-bar">
+          <label for="mc-r" style="font-size:.88rem">Samples</label>
+          <select id="mc-r"><option>200</option><option selected>500</option><option>1000</option></select>
+          <button type="button" class="btn" id="mc-run">Rerun with new draws</button>
+          <span class="status" id="mc-status"></span>
+        </div>
+        <svg id="hist" viewBox="0 0 640 280" role="img" aria-label="Sampling distributions of OLS and 2SLS estimates"></svg>
+        <p class="fn" id="mc-out" style="margin-top:-6px"></p>
+        <div class="legend"><span><i class="t"></i>True β</span><span><i class="o"></i>OLS estimates</span><span><i class="v"></i>2SLS estimates</span></div>
+        <div class="tbl-wrap"><table>
+          <thead><tr><th>Estimator</th><th>Median β̂</th><th>Median bias</th><th>IQR</th><th>95% CI covers β</th></tr></thead>
+          <tbody id="mc-body"></tbody>
+        </table></div>
+        <div class="rates" id="mc-rates"></div>
+        <div class="reading" id="mc-read" aria-live="polite"></div>
+      </div>
+    </section>
+  </div>
+</div>
+</div>
+
+<div class="wrap">
+<section class="block" id="yourdata">
+  <div class="secnum">§6 · YOUR DATA</div>
+  <h2>Run the analysis on your own data</h2>
+  <div class="prose stack">
+    <p>Load a data file, choose the outcome, the endogenous variable, and one or more instruments, and the page runs OLS and 2SLS with the diagnostics from §4 and the Anderson–Rubin interval from §2. Your data never leave this page: the file is read and analyzed in your browser, and nothing is uploaded or stored.</p>
+    <p class="fn" style="margin-top:0">The file should be a CSV (comma-, tab-, or semicolon-separated) with one case per row. <strong>The first row must contain the variable labels</strong>, one for each column; the tool reads that row as names, not as data, and uses those names in the menus and results. The analysis handles one endogenous regressor. Rows with a missing or non-numeric value on any selected variable are dropped.</p>
+  </div>
+
+  <div class="panel ud-panel">
+    <h3 class="ud-step"><span>1</span>Load data</h3>
+    <div class="ud-load">
+      <label class="btn ud-file" for="ud-file">Choose a CSV file<input type="file" id="ud-file" accept=".csv,.tsv,.txt,text/csv,text/plain"></label>
+      <button type="button" class="btn ghost" id="ud-example">Use example data from the lab</button>
+    </div>
+    <details class="why-box">
+      <summary>Or paste data</summary>
+      <div class="stack" style="gap:8px">
+        <label for="ud-paste" class="fn" style="margin:0">Paste rows copied from a spreadsheet. The first row must contain the variable labels.</label>
+        <textarea id="ud-paste" rows="6" spellcheck="false" placeholder="team,z1,z2,x,y&#10;1,0.31,-1.20,0.85,1.02&#10;..."></textarea>
+        <div><button type="button" class="btn ghost" id="ud-paste-go">Load pasted data</button></div>
+      </div>
+    </details>
+    <p class="status" id="ud-status" aria-live="polite">No data loaded yet.</p>
+
+    <div id="ud-step2" hidden>
+      <h3 class="ud-step"><span>2</span>Choose variables</h3>
+      <div class="ud-grid">
+        <div class="ud-field"><label for="ud-y">Outcome, <var>Y</var></label><select id="ud-y"></select></div>
+        <div class="ud-field"><label for="ud-x">Endogenous variable, <var>X</var></label><select id="ud-x"></select></div>
+        <div class="ud-field"><span class="ud-lab">Instruments, <var>Z</var> (at least one)</span><div class="cklist" id="ud-z" role="group" aria-label="Instruments"></div></div>
+        <div class="ud-field"><span class="ud-lab">Control variables (optional)</span><div class="cklist" id="ud-w" role="group" aria-label="Control variables"></div><span class="fn">Controls are included in every equation: the outcome equation, the first stage, and the diagnostic tests. They should be exogenous, and they should not be affected by <var>X</var>. A variable that belongs only in the first stage is an instrument and should be listed above.</span></div>
+        <div class="ud-field"><label for="ud-c">Cluster variable (optional)</label><select id="ud-c"></select><span class="fn">For nested data, such as employees within teams.</span></div>
+        <div class="ud-field"><span class="ud-lab">Standard errors</span>
+          <div class="ud-radios" role="radiogroup" aria-label="Standard errors">
+            <label><input type="radio" name="ud-se" id="ud-se-hc1" value="hc1" checked> Heteroskedasticity-robust (recommended)</label>
+            <label><input type="radio" name="ud-se" id="ud-se-conv" value="conv"> Conventional (assumes constant error variance)</label>
+            <label><input type="radio" name="ud-se" id="ud-se-cl" value="cluster"> Cluster-robust (requires a cluster variable)</label>
+          </div></div>
+      </div>
+      <h3 class="ud-step"><span>3</span>Run</h3>
+      <div class="ud-load"><button type="button" class="btn" id="ud-run">Run analysis</button><span class="status" id="ud-msg" aria-live="polite"></span></div>
+    </div>
+  </div>
+
+  <div id="ud-results" class="stack" style="gap:20px" hidden>
+    <div class="reading" id="ud-read"></div>
+    <div class="panel">
+      <div class="panel-head"><h3>Estimates of the effect of <var>X</var> on <var>Y</var></h3><p id="ud-note"></p></div>
+      <div class="tbl-wrap"><table><thead><tr><th>Estimator</th><th>β̂</th><th>SE</th><th>95% interval</th><th>p</th></tr></thead><tbody id="ud-est"></tbody></table></div>
+      <svg id="ud-forest" viewBox="0 0 900 140" role="img" aria-label="Point estimates and 95% intervals for OLS, 2SLS, and the Anderson–Rubin set"></svg>
+      <p class="fn" id="ud-forest-note"></p>
+    </div>
+    <div class="ud-two">
+      <div class="panel"><div class="panel-head"><h3 id="ud-s1-title"></h3></div><div class="svgbox"><svg id="ud-s1" viewBox="0 0 640 380" role="img" aria-label="Scatterplot of Y against X with OLS and 2SLS lines"></svg></div><div class="legend"><span><i class="o"></i>OLS</span><span><i class="v"></i>2SLS</span></div></div>
+      <div class="panel"><div class="panel-head"><h3 id="ud-s2-title"></h3></div><div class="svgbox"><svg id="ud-s2" viewBox="0 0 640 380" role="img" aria-label="Scatterplot of Y against the instrument-driven part of X with the 2SLS line"></svg></div><div class="legend"><span><i class="v"></i>2SLS</span></div></div>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><h3>First stage: are the instruments strongly related to <var>X</var>?</h3></div>
+      <div class="tbl-wrap"><table><thead><tr><th>Instrument</th><th>Coefficient</th><th>SE</th><th>t</th><th>p</th></tr></thead><tbody id="ud-fs"></tbody></table></div>
+      <div class="alg" id="ud-fs-sum"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><h3>Diagnostics</h3></div>
+      <div class="tbl-wrap"><table class="ud-diag"><thead><tr><th>Test</th><th>Statistic</th><th>p</th><th>What it means here</th></tr></thead><tbody id="ud-diag"></tbody></table></div>
+    </div>
+    <div class="ud-load"><button type="button" class="btn ghost" id="ud-copy">Copy results as text</button><span class="status" id="ud-copy-msg" aria-live="polite"></span></div>
+    <textarea id="ud-copy-text" class="ud-copy-text" rows="8" readonly hidden aria-label="Results as text"></textarea>
+  </div>
+</section>
+</div>
+
+<div class="wrap">
+<section class="block" id="practice">
+  <div class="secnum">§7 · IN PRACTICE</div>
+  <h2>A workflow for using instruments</h2>
+  <ol class="check">
+    <li><strong>Make the case for the instrument before you touch the data.</strong> Explain convincingly why <var>Z</var> should be strongly related to <var>X</var>, and why <var>X</var> is the only plausible reason that <var>Z</var> would be related to <var>Y</var>. That requires two separate cases: one against a direct effect of <var>Z</var> on <var>Y</var>, and one against a shared cause of <var>Z</var> and <var>Y</var>. Against a direct effect, identify the most plausible way <var>Z</var> could influence <var>Y</var> other than by changing <var>X</var>, and explain why it should not operate. In the training example, the linkage to argue against is that a personal invitation from management might itself motivate employees to sell more, whether or not they enroll in the training. Against a shared cause, identify the most plausible variable that could influence both <var>Z</var> and <var>Y</var>, and explain why it should not. In the training example, invitations might go mostly to stronger offices, which random assignment rules out. No test substitutes for this argument when the model is just-identified.</li>
+    <li><strong>Report the first stage and the reduced form.</strong> Report the instrument coefficients and the first-stage F. With heteroskedastic or clustered errors, use the effective F (Montiel Olea &amp; Pflueger, 2013).</li>
+    <li><strong>Seek the strongest valid instrument the design allows, and report weak-instrument-robust inference regardless.</strong> Strengthen the instrument through the design rather than by searching for the largest first-stage <var>F</var>. Report Anderson–Rubin intervals (explained in §2) alongside the conventional ones, since they remain valid however weak the instrument. In just-identified models, a conventional 5% <var>t</var>-test needs a first-stage <var>F</var> above about 104.7 to have its nominal size (Lee et al., 2022).</li>
+    <li><strong>If over-identified, report Sargan or Hansen J,</strong> and say plainly that it tests agreement among instruments, not their validity. A difference-in-Sargan (C) test can check a suspect subset.</li>
+    <li><strong>Report OLS beside 2SLS with the Durbin–Wu–Hausman test,</strong> so readers can see how much the correction matters and whether it exceeds noise.</li>
+    <li><strong>Run falsification checks.</strong> The instrument should be unrelated to pre-treatment covariates, and unrelated to <var>Y</var> in subgroups where it cannot move <var>X</var>.</li>
+    <li><strong>Report a sensitivity analysis.</strong> Falsification checks can catch some violations of exclusion but cannot measure what an undetected one would cost. Show how the estimate and its interval change under plausible direct effects of the instrument on <var>Y</var> (Conley, Hansen, &amp; Rossi, 2012), or under bounds on how strongly the instrument may be correlated with <var>u</var> (Nevo &amp; Rosen, 2012). The <a href="#sens">sensitivity panel in §4</a> runs the first of these on the simulated data.</li>
+  </ol>
+  <h3 style="margin-top:14px">References</h3>
+  <ul class="refs">
+    <li>Anderson, T. W., &amp; Rubin, H. (1949). Estimation of the parameters of a single equation in a complete system of stochastic equations. <i>Annals of Mathematical Statistics, 20</i>(1), 46–63.</li>
+    <li>Andrews, I., Stock, J. H., &amp; Sun, L. (2019). Weak instruments in instrumental variables regression: Theory and practice. <i>Annual Review of Economics, 11</i>, 727–753.</li>
+    <li>Angrist, J. D., &amp; Krueger, A. B. (1991). Does compulsory school attendance affect schooling and earnings? <i>Quarterly Journal of Economics, 106</i>(4), 979–1014.</li>
+    <li>Angrist, J. D., &amp; Pischke, J.-S. (2009). <i>Mostly harmless econometrics.</i> Princeton University Press.</li>
+    <li>Antonakis, J., Bendahan, S., Jacquart, P., &amp; Lalive, R. (2010). On making causal claims: A review and recommendations. <i>The Leadership Quarterly, 21</i>(6), 1086–1120.</li>
+    <li>Bennedsen, M., Nielsen, K. M., Pérez-González, F., &amp; Wolfenzon, D. (2007). Inside the family firm: The role of families in succession decisions and performance. <i>Quarterly Journal of Economics, 122</i>(2), 647–691.</li>
+    <li>Conley, T. G., Hansen, C. B., &amp; Rossi, P. E. (2012). Plausibly exogenous. <i>Review of Economics and Statistics, 94</i>(1), 260–272.</li>
+    <li>Durbin, J. (1954). Errors in variables. <i>Review of the International Statistical Institute, 22</i>, 23–32.</li>
+    <li>Fuller, W. A. (1987). <i>Measurement error models.</i> Wiley.</li>
+    <li>Hansen, L. P. (1982). Large sample properties of generalized method of moments estimators. <i>Econometrica, 50</i>(4), 1029–1054.</li>
+    <li>Hall, A. R., Rudebusch, G. D., &amp; Wilcox, D. W. (1996). Judging instrument relevance in instrumental variables estimation. <i>International Economic Review, 37</i>(2), 283–298.</li>
+    <li>Hausman, J. A. (1978). Specification tests in econometrics. <i>Econometrica, 46</i>(6), 1251–1271.</li>
+    <li>Imbens, G. W., &amp; Angrist, J. D. (1994). Identification and estimation of local average treatment effects. <i>Econometrica, 62</i>(2), 467–475.</li>
+    <li>Lee, D. S., McCrary, J., Moreira, M. J., &amp; Porter, J. (2022). Valid t-ratio inference for IV. <i>American Economic Review, 112</i>(10), 3260–3290.</li>
+    <li>Montiel Olea, J. L., &amp; Pflueger, C. (2013). A robust test for weak instruments. <i>Journal of Business &amp; Economic Statistics, 31</i>(3), 358–369.</li>
+    <li>Nevo, A., &amp; Rosen, A. M. (2012). Identification with imperfect instruments. <i>Review of Economics and Statistics, 94</i>(3), 659–671.</li>
+    <li>Rothenberg, T. J. (1984). Approximating the distributions of econometric estimators and test statistics. In Z. Griliches &amp; M. D. Intriligator (Eds.), <i>Handbook of econometrics</i> (Vol. 2, pp. 881–935). North-Holland.</li>
+    <li>Sargan, J. D. (1958). The estimation of economic relationships using instrumental variables. <i>Econometrica, 26</i>(3), 393–415.</li>
+    <li>Spearman, C. (1904). The proof and measurement of association between two things. <i>American Journal of Psychology, 15</i>(1), 72–101.</li>
+    <li>Staiger, D., &amp; Stock, J. H. (1997). Instrumental variables regression with weak instruments. <i>Econometrica, 65</i>(3), 557–586.</li>
+    <li>Stock, J. H., Wright, J. H., &amp; Yogo, M. (2002). A survey of weak instruments and weak identification in generalized method of moments. <i>Journal of Business &amp; Economic Statistics, 20</i>(4), 518–529.</li>
+    <li>Stock, J. H., &amp; Yogo, M. (2005). Testing for weak instruments in linear IV regression. In D. W. K. Andrews &amp; J. H. Stock (Eds.), <i>Identification and inference for econometric models</i> (pp. 80–108). Cambridge University Press.</li>
+    <li>Wu, D.-M. (1973). Alternative tests of independence between stochastic regressors and disturbances. <i>Econometrica, 41</i>(4), 733–750.</li>
+  </ul>
+</section>
+<section class="block" id="cite">
+  <div class="secnum">HOW TO CITE</div>
+  <div class="cite-box">
+    <p class="fn" style="margin:0">Instrumental Variables Lab, Version 1.0 (November 2026)</p>
+    <div class="cite-item"><h3>As a source of information</h3><p class="cite-text" id="cite-info">Cortina, J. (2026). <i>Instrumental variables lab</i>. https://josecortina.com</p><button type="button" class="btn ghost cite-btn" data-target="cite-info">Copy</button></div>
+    <div class="cite-item"><h3>As the tool used to analyze data</h3><p class="cite-text" id="cite-tool">Cortina, J. (2026). <i>Instrumental Variables Lab</i> (Version 1.0) [Web application]. https://josecortina.com</p><button type="button" class="btn ghost cite-btn" data-target="cite-tool">Copy</button></div>
+    <div class="cite-item"><h3>In a methods section</h3><p class="cite-text" id="cite-methods">Please cite the published methods as well as the tool, for example: “2SLS estimates and Anderson–Rubin confidence intervals (Anderson &amp; Rubin, 1949) were computed with the Instrumental Variables Lab (Cortina, 2026).”</p><button type="button" class="btn ghost cite-btn" data-target="cite-methods">Copy</button></div>
+    <p class="status" id="cite-msg" aria-live="polite"></p>
+  </div>
+</section>
+<footer>All computation runs in your browser. Errors are homoskedastic by construction and independent unless you raise the clustering ICC. The OLS and 2SLS standard errors shown are conventional ones, so with ICC above 0 their intervals are too narrow; with real nested data, use cluster-robust standard errors as well as Hansen's J.</footer>
+</div>
+
+<script>
+"use strict";
+/* ================= Random numbers ================= */
+function mulberry(seed){let a=seed>>>0;return()=>{a=(a+0x6D2B79F5)|0;let t=Math.imul(a^(a>>>15),1|a);t=(t+Math.imul(t^(t>>>7),61|t))^t;return((t^(t>>>14))>>>0)/4294967296;};}
+function gauss(r){let spare=null;return()=>{if(spare!==null){const s=spare;spare=null;return s;}let u,v,s;do{u=r()*2-1;v=r()*2-1;s=u*u+v*v;}while(s>=1||s===0);const m=Math.sqrt(-2*Math.log(s)/s);spare=v*m;return u*m;};}
+
+/* ================= Distributions ================= */
+function lgamma(x){const c=[0.99999999999980993,676.5203681218851,-1259.1392167224028,771.32342877765313,-176.61502916214059,12.507343278686905,-0.13857109526572012,9.9843695780195716e-6,1.5056327351493116e-7];
+  if(x<0.5)return Math.log(Math.PI/Math.sin(Math.PI*x))-lgamma(1-x);x-=1;let a=c[0];const t=x+7.5;for(let i=1;i<9;i++)a+=c[i]/(x+i);return 0.5*Math.log(2*Math.PI)+(x+0.5)*Math.log(t)-t+Math.log(a);}
+function betacf(a,b,x){const FP=1e-300;let qab=a+b,qap=a+1,qam=a-1,c=1,d=1-qab*x/qap;if(Math.abs(d)<FP)d=FP;d=1/d;let h=d;
+  for(let m=1;m<=400;m++){const m2=2*m;let aa=m*(b-m)*x/((qam+m2)*(a+m2));d=1+aa*d;if(Math.abs(d)<FP)d=FP;c=1+aa/c;if(Math.abs(c)<FP)c=FP;d=1/d;h*=d*c;
+    aa=-(a+m)*(qab+m)*x/((a+m2)*(qap+m2));d=1+aa*d;if(Math.abs(d)<FP)d=FP;c=1+aa/c;if(Math.abs(c)<FP)c=FP;d=1/d;const del=d*c;h*=del;if(Math.abs(del-1)<3e-15)break;}return h;}
+function ibeta(x,a,b){if(x<=0)return 0;if(x>=1)return 1;const bt=Math.exp(lgamma(a+b)-lgamma(a)-lgamma(b)+a*Math.log(x)+b*Math.log(1-x));
+  return x<(a+1)/(a+b+2)?bt*betacf(a,b,x)/a:1-bt*betacf(b,a,1-x)/b;}
+function gammaQ(a,x){if(x<=0)return 1;const lp=-x+a*Math.log(x)-lgamma(a);
+  if(x<a+1){let ap=a,sum=1/a,del=sum;for(let n=0;n<600;n++){ap++;del*=x/ap;sum+=del;if(Math.abs(del)<Math.abs(sum)*1e-15)break;}return 1-sum*Math.exp(lp);}
+  let b=x+1-a,c=1e300,d=1/b,h=d;for(let i=1;i<600;i++){const an=-i*(i-a);b+=2;d=an*d+b;if(Math.abs(d)<1e-300)d=1e-300;c=b+an/c;if(Math.abs(c)<1e-300)c=1e-300;d=1/d;const del=d*c;h*=del;if(Math.abs(del-1)<1e-15)break;}return Math.exp(lp)*h;}
+const pT2=(t,df)=>ibeta(df/(df+t*t),df/2,0.5);
+const pF=(F,d1,d2)=>F<=0?1:ibeta(d2/(d2+d1*F),d2/2,d1/2);
+const pChi=(x,df)=>gammaQ(df/2,x/2);
+
+/* ================= Least squares ================= */
+function invert(M){const k=M.length,A=M.map((r,i)=>[...r,...Array.from({length:k},(_,j)=>i===j?1:0)]);
+  for(let c=0;c<k;c++){let p=c;for(let r=c+1;r<k;r++)if(Math.abs(A[r][c])>Math.abs(A[p][c]))p=r;if(Math.abs(A[p][c])<1e-12)return null;[A[c],A[p]]=[A[p],A[c]];
+    const pv=A[c][c];for(let j=0;j<2*k;j++)A[c][j]/=pv;for(let r=0;r<k;r++)if(r!==c){const f=A[r][c];if(f)for(let j=0;j<2*k;j++)A[r][j]-=f*A[c][j];}}
+  return A.map(r=>r.slice(k));}
+function ols(cols,y){const k=cols.length,n=y.length,XtX=Array.from({length:k},()=>new Array(k).fill(0)),Xty=new Array(k).fill(0);
+  for(let i=0;i<n;i++){const yi=y[i];for(let a=0;a<k;a++){const ca=cols[a][i];Xty[a]+=ca*yi;for(let b=a;b<k;b++)XtX[a][b]+=ca*cols[b][i];}}
+  for(let a=0;a<k;a++)for(let b=0;b<a;b++)XtX[a][b]=XtX[b][a];
+  const inv=invert(XtX);if(!inv)return null;const b=inv.map(r=>r.reduce((s,v,j)=>s+v*Xty[j],0));
+  const fit=new Float64Array(n),res=new Float64Array(n);let rss=0,my=0;for(let i=0;i<n;i++)my+=y[i];my/=n;let tss=0;
+  for(let i=0;i<n;i++){let f=0;for(let a=0;a<k;a++)f+=b[a]*cols[a][i];fit[i]=f;const e=y[i]-f;res[i]=e;rss+=e*e;tss+=(y[i]-my)**2;}
+  return{b,inv,rss,tss,fit,res};}
+
+/* ================= Simulation ================= */
+function shocks(n,seed){const g=gauss(mulberry(seed));const mk=()=>{const a=new Float64Array(n);for(let i=0;i<n;i++)a[i]=g();return a;};
+  const o={n,seed,z1:mk(),z2:mk(),u:mk(),v:mk(),e:mk(),one:new Float64Array(n).fill(1)};
+  const G=Math.ceil(n/10),mkG=()=>{const a=new Float64Array(G);for(let i=0;i<G;i++)a[i]=g();return a;};o.z1c=mkG();o.z2c=mkG();o.ec=mkG();o.vc=mkG();return o;}
+function outcome(s,p){const n=s.n,x=new Float64Array(n),y=new Float64Array(n),z1=new Float64Array(n),z2=new Float64Array(n),c=p.icc||0,ca=Math.sqrt(c),cb=Math.sqrt(1-c);
+  for(let i=0;i<n;i++){const g=Math.floor(i/10);z1[i]=ca*s.z1c[g]+cb*s.z1[i];z2[i]=ca*s.z2c[g]+cb*s.z2[i];const e=ca*s.ec[g]+cb*s.e[i],v=ca*s.vc[g]+cb*s.v[i];
+    x[i]=p.pi1*z1[i]+p.pi2*z2[i]+p.gamma*s.u[i]+v;y[i]=p.beta*x[i]+p.delta*s.u[i]+p.phi1*z1[i]+p.phi2*z2[i]+e;}
+  return{x,y,z1,z2,icc:c};}
+function effF(Zs,x,res,n){const k=Zs.length,Zt=Zs.map(z=>{let m=0;for(let i=0;i<n;i++)m+=z[i];m/=n;return Float64Array.from(z,v=>v-m);});
+  const Q=Array.from({length:k},(_,a)=>Array.from({length:k},(_,b)=>{let t=0;for(let i=0;i<n;i++)t+=Zt[a][i]*Zt[b][i];return t;}));
+  const Qi=invert(Q);if(!Qi)return null;const zx=Zt.map(z=>{let t=0;for(let i=0;i<n;i++)t+=z[i]*x[i];return t;});
+  const pi=Qi.map(r=>r.reduce((t,v,j)=>t+v*zx[j],0));
+  const G=Math.ceil(n/10),M=Array.from({length:k},()=>new Array(k).fill(0));
+  for(let g=0;g<G;g++){const sg=new Array(k).fill(0);for(let i=g*10;i<Math.min(n,g*10+10);i++)for(let a=0;a<k;a++)sg[a]+=Zt[a][i]*res[i];for(let a=0;a<k;a++)for(let b=0;b<k;b++)M[a][b]+=sg[a]*sg[b];}
+  const corr=G/(G-1);let num=0,den=0;
+  for(let a=0;a<k;a++)for(let b=0;b<k;b++){num+=pi[a]*Q[a][b]*pi[b];den+=Qi[a][b]*M[b][a];}
+  return{F:num/(den*corr),G,k};}
+function hansenJ(W,Xc,y,e,n,clustered){const L=W.length,K=Xc.length,Sm=Array.from({length:L},()=>new Array(L).fill(0));
+  if(clustered){const G=Math.ceil(n/10);for(let g=0;g<G;g++){const sg=new Array(L).fill(0);for(let i=g*10;i<Math.min(n,g*10+10);i++)for(let l=0;l<L;l++)sg[l]+=W[l][i]*e[i];
+      for(let a=0;a<L;a++)for(let b=0;b<L;b++)Sm[a][b]+=sg[a]*sg[b];}}
+  else for(let i=0;i<n;i++){const e2=e[i]*e[i];for(let a=0;a<L;a++)for(let b=0;b<L;b++)Sm[a][b]+=e2*W[a][i]*W[b][i];}
+  for(let a=0;a<L;a++)for(let b=0;b<L;b++)Sm[a][b]/=n;
+  const Si=invert(Sm);if(!Si)return null;
+  const ZX=Array.from({length:L},()=>new Array(K).fill(0)),Zy=new Array(L).fill(0);
+  for(let i=0;i<n;i++)for(let l=0;l<L;l++){Zy[l]+=W[l][i]*y[i];for(let k=0;k<K;k++)ZX[l][k]+=W[l][i]*Xc[k][i];}
+  const SZX=Si.map(r=>Array.from({length:K},(_,k)=>r.reduce((t,v,j)=>t+v*ZX[j][k],0))),SZy=Si.map(r=>r.reduce((t,v,j)=>t+v*Zy[j],0));
+  const A=Array.from({length:K},(_,a)=>Array.from({length:K},(_,b)=>ZX.reduce((t,r,l)=>t+r[a]*SZX[l][b],0))),bv=Array.from({length:K},(_,a)=>ZX.reduce((t,r,l)=>t+r[a]*SZy[l],0));
+  const Ai=invert(A);if(!Ai)return null;const beta=Ai.map(r=>r.reduce((t,v,j)=>t+v*bv[j],0));
+  const gb=new Array(L).fill(0);for(let i=0;i<n;i++){let r=y[i];for(let k=0;k<K;k++)r-=beta[k]*Xc[k][i];for(let l=0;l<L;l++)gb[l]+=W[l][i]*r;}
+  for(let l=0;l<L;l++)gb[l]/=n;let J=0;for(let a=0;a<L;a++)for(let b=0;b<L;b++)J+=gb[a]*Si[a][b]*gb[b];J*=n;
+  return{J,df:L-K,p:pChi(J,L-K),G:clustered?Math.ceil(n/10):null};}
+
+function analyze(s,xy,both){const n=s.n,{x,y}=xy,one=s.one,W=both?[one,xy.z1,xy.z2]:[one,xy.z1],q=W.length-1,out={n,q};
+  const o=ols([one,x],y);const s2o=o.rss/(n-2);out.ols={b:o.b[1],se:Math.sqrt(s2o*o.inv[1][1]),b0:o.b[0]};
+  const fs=ols(W,x);if(!fs){out.fail=true;return out;}
+  out.F=((fs.tss-fs.rss)/q)/(fs.rss/(n-q-1));if(xy.icc>0)out.Feff=effF(W.slice(1),x,fs.res,n);out.pF=pF(out.F,q,n-q-1);out.R2=1-fs.rss/fs.tss;out.xhat=fs.fit;
+  const ss=ols([one,fs.fit],y);if(!ss){out.fail=true;return out;}
+  const b0=ss.b[0],b1=ss.b[1],e=new Float64Array(n);let ee=0;for(let i=0;i<n;i++){e[i]=y[i]-b0-b1*x[i];ee+=e[i]*e[i];}
+  out.iv={b:b1,b0,se:Math.sqrt(ee/(n-2)*ss.inv[1][1])};
+  const dw=ols([one,x,fs.res],y);if(dw){const sd=Math.sqrt(dw.rss/(n-3)*dw.inv[2][2]);out.dwh={rho:dw.b[2],t:dw.b[2]/sd,df:n-3};out.dwh.F=out.dwh.t**2;out.dwh.p=pT2(out.dwh.t,n-3);}
+  if(q>1){const aux=ols(W,e);const R2=1-aux.rss/aux.tss;out.sar={S:n*R2,df:q-1};out.sar.p=pChi(out.sar.S,q-1);out.J=hansenJ(W,[one,x],y,e,n,xy.icc>0);}
+  return out;}
+
+function population(p,n,both){const r={};r.covXu=p.gamma*p.delta+p.pi1*p.phi1+p.pi2*p.phi2;r.varX=p.pi1**2+p.pi2**2+p.gamma**2+1;r.ols=p.beta+r.covXu/r.varX;
+  if(both){const d=p.pi1**2+p.pi2**2;r.iv=d>0?p.beta+(p.pi1*p.phi1+p.pi2*p.phi2)/d:NaN;r.mu2=n*d/(p.gamma**2+1);r.q=2;r.valid=p.phi1===0&&p.phi2===0;}
+  else{r.iv=p.pi1>0?p.beta+p.phi1/p.pi1:NaN;r.mu2=n*p.pi1**2/(p.pi2**2+p.gamma**2+1);r.q=1;r.valid=p.phi1===0;}
+  const ic=p.icc||0,clus=both?ic/(p.gamma**2+1):ic*(p.pi2**2+1)/(p.pi2**2+p.gamma**2+1);r.deff=1+9*ic*clus;r.EF=1+r.mu2/(r.q*r.deff);r.endog=Math.abs(r.covXu)>1e-9;
+  r.proportional=both&&!r.valid&&p.pi1>0&&p.pi2>0&&Math.abs(p.phi1/p.pi1-p.phi2/p.pi2)<0.015;
+  return r;}
+
+/* ================= Formatting ================= */
+const MINUS="−";
+const f=(v,d=2)=>!isFinite(v)?"—":(v<0?MINUS:"")+Math.abs(v).toFixed(d);
+const fs_=(v,d=2)=>!isFinite(v)?"—":(v>0?"+":v<0?MINUS:"")+Math.abs(v).toFixed(d);
+const fp=p=>!isFinite(p)?"—":p<.001?"< .001":"= "+p.toFixed(3).replace(/^0/,"");
+const fbig=v=>!isFinite(v)?"—":v>=1000?v.toExponential(1):v>=100?v.toFixed(0):v.toFixed(2);
+function niceTicks(lo,hi,count=5){const span=hi-lo;if(!(span>0))return[lo];const s0=span/count,m=10**Math.floor(Math.log10(s0)),e=s0/m,st=(e>=7.5?10:e>=3.5?5:e>=1.5?2:1)*m,t=[];
+  for(let v=Math.ceil(lo/st-1e-9)*st;v<=hi+st*1e-6;v+=st)t.push(+v.toFixed(10));return t;}
+function quant(arr,q){const a=Float64Array.from(arr).sort();const i=(a.length-1)*q,lo=Math.floor(i),hi=Math.ceil(i);return a[lo]+(a[hi]-a[lo])*(i-lo);}
+const $=id=>document.getElementById(id);
+
+/* ================= State & controls ================= */
+const NS=[50,100,200,300,500,1000,2000];
+const DEF={beta:.5,gamma:.8,delta:.8,pi1:.5,pi2:.4,phi1:0,phi2:0,nIdx:3,both:true,icc:0};
+const S={...DEF,seed:20261028,view:"x",preset:"textbook"};
+const PRESETS=[
+  {id:"textbook",label:"Valid, strong instruments",set:{},desc:`The case IV is designed for: <var>X</var> is confounded by <var>U</var>, and both instruments are strong and valid. <b>Look at:</b> OLS is biased, 2SLS lands close to β, and Sargan retains.`},
+  {id:"noendog",label:"No endogeneity",set:{delta:0},desc:`No confounding (δ = 0), so <var>X</var> is exogenous. <b>Look at:</b> OLS and 2SLS both center on β, OLS has the narrower interval, and Durbin–Wu–Hausman rarely rejects.`},
+  {id:"weak",label:"Weak instruments",set:{pi1:.07,pi2:.05},desc:`The instruments barely predict <var>X</var> (π₁ = .07, π₂ = .05). <b>Look at:</b> the first-stage <var>F</var> is small, 2SLS drifts toward OLS with a very wide interval, and in §5 the 2SLS histogram is spread out with heavy tails.`},
+  {id:"onebad",label:"One invalid instrument",set:{phi1:.3},desc:`Z₁ has a direct effect on <var>Y</var> (φ₁ = .30), so it violates exclusion, while Z₂ is valid. <b>Look at:</b> 2SLS is biased, and Sargan detects that the two instruments disagree.`},
+  {id:"samebad",label:"Both invalid, same direction",set:{phi1:.2,phi2:.16},desc:`Both instruments violate exclusion in proportion to their strength. <b>Look at:</b> 2SLS is about as biased as OLS, yet Sargan retains, because the instruments agree on the same wrong value.`},
+  {id:"justid",label:"Just-identified",set:{both:false},desc:`Only Z₁ is used as an instrument, the most common situation in practice; Z₂ still affects <var>X</var> but is treated as an unmeasured cause. <b>Look at:</b> there is no Sargan test, and the 2SLS interval is wider. Then move φ₁ above zero to see a violation that nothing on the page can detect.`},
+  {id:"nested",label:"Nested data",set:{icc:.4,nIdx:4},desc:`Cases come in groups of 10 with an ICC of .40, as with employees in teams. <b>Look at:</b> the effective <var>F</var> is smaller than the conventional <var>F</var>, and in §5 Sargan rejects valid instruments too often while Hansen's <var>J</var> does not.`},
+];
+const GROUPS=[
+  {title:"Truth",items:[{k:"beta",sym:"β",d:"X → Y, the causal effect",min:-1,max:1,step:.05,c:"c-ink"}]},
+  {title:"Confounding",note:"Unobserved U drives both X and Y.",items:[{k:"gamma",sym:"γ",d:"U → X",min:0,max:1.5,step:.05,c:"c-u"},{k:"delta",sym:"δ",d:"U → Y",min:-1.5,max:1.5,step:.05,c:"c-u"}]},
+  {title:"Instrument strength",items:[{k:"pi1",sym:"π₁",d:"Z₁ → X",min:0,max:1,step:.01,c:"c-z"},{k:"pi2",sym:"π₂",d:"Z₂ → X",min:0,max:1,step:.01,c:"c-z"}]},
+  {title:"Exclusion violations",note:"Direct paths from an instrument to Y. Zero means valid.",items:[{k:"phi1",sym:"φ₁",d:"Z₁ → Y directly",min:-.5,max:.5,step:.01,c:"c-bad"},{k:"phi2",sym:"φ₂",d:"Z₂ → Y directly",min:-.5,max:.5,step:.01,c:"c-bad"}]},
+];
+function buildControls(){
+  $("presets").innerHTML=PRESETS.map(p=>`<button type="button" class="chip" data-p="${p.id}" aria-pressed="false">${p.label}</button>`).join("");
+  {const d=document.createElement("p");d.id="preset-desc";d.className="pdesc";d.setAttribute("aria-live","polite");$("presets").append(d);}
+  $("presets").addEventListener("click",e=>{const b=e.target.closest("[data-p]");if(!b)return;const p=PRESETS.find(x=>x.id===b.dataset.p);Object.assign(S,DEF,p.set);S.preset=p.id;syncControls();update();});
+  $("sliders").innerHTML=GROUPS.map(g=>`<div class="cgroup"><h3>${g.title}</h3>${g.note?`<div class="note">${g.note}</div>`:""}${g.items.map(it=>
+    `<div class="slider"><div class="row"><label for="s-${it.k}"><span class="sym">${it.sym}</span>${it.d}</label><output id="o-${it.k}" for="s-${it.k}"></output></div>
+     <input type="range" id="s-${it.k}" class="${it.c}" min="${it.min}" max="${it.max}" step="${it.step}"></div>`).join("")}</div>`).join("");
+  GROUPS.flatMap(g=>g.items).forEach(it=>$("s-"+it.k).addEventListener("input",e=>{S[it.k]=+e.target.value;S.preset=null;$("o-"+it.k).textContent=f(S[it.k]);update();}));
+  $("s-n").addEventListener("input",e=>{S.nIdx=+e.target.value;S.preset=null;$("o-n").textContent=NS[S.nIdx];update();});
+  $("s-icc").addEventListener("input",e=>{S.icc=+e.target.value;S.preset=null;$("o-icc").textContent=f(S.icc);update();});
+  $("ins-1").onclick=()=>{S.both=false;S.preset=null;syncControls();update();};
+  $("ins-2").onclick=()=>{S.both=true;S.preset=null;syncControls();update();};
+  $("redraw").onclick=()=>{S.seed=(S.seed*1103515245+12345)>>>0;update();};
+  $("ax-x").onclick=()=>{S.view="x";syncControls();renderScatter();};  $("ax-xh").onclick=()=>{S.view="xh";syncControls();renderScatter();};
+  $("sens-run").onclick=()=>{sensOn=true;runSens();};
+  $("s-dmax").addEventListener("input",e=>{$("o-dmax").textContent=f(+e.target.value);if(sensOn)runSens();});
+  $("mc-run").onclick=()=>{mcSeed++;runMC();};
+  $("mc-r").onchange=()=>runMC();
+}
+function syncControls(){
+  GROUPS.flatMap(g=>g.items).forEach(it=>{$("s-"+it.k).value=S[it.k];$("o-"+it.k).textContent=f(S[it.k]);});
+  $("s-n").value=S.nIdx;$("o-n").textContent=NS[S.nIdx];$("s-icc").value=S.icc;$("o-icc").textContent=f(S.icc);
+  $("ins-1").setAttribute("aria-pressed",!S.both);$("ins-2").setAttribute("aria-pressed",S.both);
+  $("ax-x").setAttribute("aria-pressed",S.view==="x");$("ax-xh").setAttribute("aria-pressed",S.view==="xh");
+  document.querySelectorAll("#presets .chip").forEach(b=>b.setAttribute("aria-pressed",b.dataset.p===S.preset));
+  const pr=PRESETS.find(x=>x.id===S.preset);const pd=$("preset-desc");pd.innerHTML=pr?`<b>${pr.label}.</b> ${pr.desc}`:"Custom settings. Choose a scenario above to reset all of the sliders.";pd.classList.toggle("custom",!pr);const ch=pr&&document.querySelector(`#presets .chip[data-p="${pr.id}"]`);if(ch)ch.after(pd);else $("presets").append(pd);
+}
+
+/* ================= DAG ================= */
+const NODES={z1:[70,90,"Z₁","instrument","z"],z2:[70,205,"Z₂","instrument","z"],x:[265,148,"X","treatment",""],y:[505,148,"Y","outcome",""],u:[385,46,"U","unobserved","u"]};
+const R=26;
+function seg(a,b){const[x1,y1]=NODES[a],[x2,y2]=NODES[b],dx=x2-x1,dy=y2-y1,L=Math.hypot(dx,dy),ux=dx/L,uy=dy/L;
+  return`M${(x1+ux*R).toFixed(1)} ${(y1+uy*R).toFixed(1)} L${(x2-ux*(R+7)).toFixed(1)} ${(y2-uy*(R+7)).toFixed(1)}`;}
+const EDGES=[
+  {id:"zx1",d:seg("z1","x"),cls:"z",lab:[160,104,"middle"],k:"pi1",sym:"π₁"},
+  {id:"zx2",d:seg("z2","x"),cls:"z",lab:[160,200,"middle"],k:"pi2",sym:"π₂"},
+  {id:"ux",d:seg("u","x"),cls:"u",lab:[312,88,"end"],k:"gamma",sym:"γ"},
+  {id:"uy",d:seg("u","y"),cls:"u",lab:[458,88,"start"],k:"delta",sym:"δ"},
+  {id:"xy",d:seg("x","y"),cls:"ink",lab:[385,138,"middle"],k:"beta",sym:"β"},
+  {id:"zy1",d:"M90 108 C170 330, 400 322, 484 172",cls:"bad",lab:[288,306,"middle"],k:"phi1",sym:"φ₁"},
+  {id:"zy2",d:"M94 214 C180 285, 390 282, 482 168",cls:"bad",lab:[288,248,"middle"],k:"phi2",sym:"φ₂"},
+];
+function buildDag(){
+  const mk=c=>`<marker id="ar-${c}" viewBox="0 0 10 10" refX="2" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path class="mk-${c}" d="M0 0 L10 5 L0 10 z"/></marker>`;
+  let h=`<defs>${["z","ink","u","bad","off"].map(mk).join("")}</defs>`;
+  h+=EDGES.map(e=>`<path id="e-${e.id}" class="edge e-${e.cls}" d="${e.d}" marker-end="url(#ar-${e.cls})"/>`).join("");
+  h+=Object.entries(NODES).map(([k,[x,y,l,c,t]])=>`<g class="node ${t}" id="n-${k}"><circle cx="${x}" cy="${y}" r="${R}"/><text class="n" x="${x}" y="${y}">${l}</text><text class="c" x="${x}" y="${k==="u"?y-36:y+44}">${c}</text></g>`).join("");
+  h+=EDGES.map(e=>`<text id="l-${e.id}" class="elab" x="${e.lab[0]}" y="${e.lab[1]}" text-anchor="${e.lab[2]}"></text>`).join("");
+  $("dag").innerHTML=h;
+}
+function renderDag(){
+  EDGES.forEach(e=>{const v=S[e.k],el=$("e-"+e.id),lb=$("l-"+e.id),off=Math.abs(v)<1e-9;
+    el.setAttribute("class",`edge e-${e.cls}${off?" off":""}`);el.setAttribute("marker-end",`url(#ar-${off?"off":e.cls})`);
+    el.style.strokeWidth=off?1.2:(1.4+3.6*Math.min(Math.abs(v)/1,1)).toFixed(2);
+    lb.textContent=`${e.sym} = ${f(v)}`;lb.setAttribute("class",`elab${off?" off":e.cls==="bad"?" bad":""}`);});
+  $("n-z2").setAttribute("class",`node z${S.both?"":" unused"}`);
+  $("n-z2").querySelector(".c").textContent=S.both?"instrument":"not used";
+}
+
+/* ================= Rendering ================= */
+let cur=null,shock=null;
+function update(){
+  const n=NS[S.nIdx];if(!shock||shock.n!==n||shock.seed!==S.seed)shock=shocks(n,S.seed);
+  const xy=outcome(shock,S),a=analyze(shock,xy,S.both),pop=population(S,n,S.both);cur={xy,a,pop};
+  syncControls();renderDag();renderEstimates();renderScatter();renderTests();if(sensOn)runSens();scheduleMC();
+}
+function ci(e){return[e.b-1.96*e.se,e.b+1.96*e.se];}
+function renderEstimates(){
+  const{a}=cur,n=a.n;$("samplenote").textContent=`n = ${n}, ${S.both?"two instruments":"one instrument"}`;
+  const row=(name,key,e)=>{if(!e)return`<tr><td><span class="key ${key}"></span>${name}</td><td class="num" colspan="4">not identified</td></tr>`;const[l,h]=ci(e);
+    return`<tr><td><span class="key ${key}"></span>${name}</td><td class="num">${f(e.b)}</td><td class="num">${f(e.se)}</td><td class="num">[${f(l)}, ${f(h)}]</td><td class="num">${fs_(e.b-S.beta)}</td></tr>`;};
+  $("est-body").innerHTML=`<tr><td><span class="key k-true"></span>True β</td><td class="num">${f(S.beta)}</td><td></td><td></td><td></td></tr>`+row("OLS","k-ols",a.ols)+row("2SLS","k-iv",a.iv);
+  renderForest();renderReading();
+}
+function renderForest(){
+  const{a}=cur,W=560,H=130,L=60,Rm=16,T=14,B=30;const ests=[["OLS",a.ols,"ols"],["2SLS",a.iv,"iv"]].filter(r=>r[1]);
+  let lo=Math.min(0,S.beta),hi=Math.max(0,S.beta);ests.forEach(([,e])=>{const[l,h]=ci(e);lo=Math.min(lo,l);hi=Math.max(hi,h);});
+  const capL=S.beta-2.5,capH=S.beta+2.5;lo=Math.max(lo,capL);hi=Math.min(hi,capH);const pad=(hi-lo)*.08||.5;lo-=pad;hi+=pad;
+  const X=v=>L+(Math.min(Math.max(v,lo),hi)-lo)/(hi-lo)*(W-L-Rm);let s="";
+  const ticks=niceTicks(lo,hi,6);s+=`<g class="axis">${ticks.map(t=>`<line x1="${X(t)}" x2="${X(t)}" y1="${T}" y2="${H-B}"/><text x="${X(t)}" y="${H-B+16}" text-anchor="middle">${f(t,Math.abs(t)<1&&t!==0?1:0).replace(/\.0$/,"")}</text>`).join("")}</g>`;
+  s+=`<line class="l-true" x1="${X(S.beta)}" x2="${X(S.beta)}" y1="${T-6}" y2="${H-B}"/>`;
+  const rowY=i=>T+18+i*34;
+  ests.forEach(([nm,e,k],i)=>{const[l,h]=ci(e),y=rowY(i),cl=l<lo,ch=h>hi;
+    s+=`<text class="lbl" x="${L-10}" y="${y+4}" text-anchor="end">${nm}</text><line class="l-${k}" x1="${X(l)}" x2="${X(h)}" y1="${y}" y2="${y}"/>`;
+    if(cl)s+=`<path class="f-${k}" d="M${X(lo)} ${y} l7 -5 v10z"/>`;if(ch)s+=`<path class="f-${k}" d="M${X(hi)} ${y} l-7 -5 v10z"/>`;
+    if(e.b>=lo&&e.b<=hi)s+=`<circle class="f-${k}" cx="${X(e.b)}" cy="${y}" r="5.5"/>`;});
+  s+=`<text class="lbl" x="${X(S.beta)}" y="${T-1}" text-anchor="middle" style="font-size:10.5px">true β</text>`;
+  $("forest").innerHTML=s;
+}
+function renderReading(){
+  const{a,pop}=cur,p=[];const ob=a.ols.b-S.beta;
+  if(!pop.endog)p.push(`<p><b>OLS</b> lands ${f(Math.abs(ob))} ${ob>=0?"above":"below"} the truth. There is no confounding path in this setup, so that gap is sampling error and OLS is the more precise estimator.</p>`);
+  else p.push(`<p><b>OLS</b> lands ${f(Math.abs(ob))} ${ob>=0?"above":"below"} the true β of ${f(S.beta)}. The algebra says it converges to ${f(pop.ols)}, so most of this gap is bias, and a larger sample would only narrow the interval around it.</p>`);
+  if(a.iv){const[l,h]=ci(a.iv),cov=l<=S.beta&&S.beta<=h;
+    let t=`<p><b>2SLS</b> gives ${f(a.iv.b)} with a 95% interval from ${f(l)} to ${f(h)}, which ${cov?"covers":"misses"} the truth.`;
+    if(!pop.valid)t+=` The instruments are invalid here, so 2SLS converges to ${f(pop.iv)}, not to β.`;
+    else if(a.F<10)t+=` The first stage is weak (F = ${fbig(a.F)}), so this estimate is unstable and drifts toward OLS across samples.`;
+    else t+=` Its interval is ${f((h-l)/(2*1.96*a.ols.se),1)} times as wide as OLS's, the price of using only instrument-driven variation.`;
+    p.push(t+"</p>");}
+  $("reading").innerHTML=`<div class="eyebrow">Reading this sample</div>`+p.join("");
+}
+function drawScatter(svgId,view,col){
+  const{xy,a}=cur,W=640,H=380,L=48,Rm=14,T=12,B=40,n=xy.x.length;const hx=view==="xh"?a.xhat:xy.x,y=xy.y,cid="clip-"+svgId;
+  const xl=quant(xy.x,.005),xh=quant(xy.x,.995),yl=quant(y,.005),yh=quant(y,.995);const px=(xh-xl)*.06,py=(yh-yl)*.06;
+  const x0=xl-px,x1=xh+px,y0=yl-py,y1=yh+py;const X=v=>L+(v-x0)/(x1-x0)*(W-L-Rm),Y=v=>H-B-(v-y0)/(y1-y0)*(H-B-T);
+  let s=`<defs><clipPath id="${cid}"><rect x="${L}" y="${T}" width="${W-L-Rm}" height="${H-B-T}"/></clipPath></defs>`;
+  const tx=niceTicks(x0,x1,7),ty=niceTicks(y0,y1,6);
+  s+=`<g class="grid">${tx.map(t=>`<line x1="${X(t)}" x2="${X(t)}" y1="${T}" y2="${H-B}"/>`).join("")}${ty.map(t=>`<line x1="${L}" x2="${W-Rm}" y1="${Y(t)}" y2="${Y(t)}"/>`).join("")}</g>`;
+  s+=`<g class="axis">${tx.map(t=>`<text x="${X(t)}" y="${H-B+16}" text-anchor="middle">${f(t,Number.isInteger(t)?0:1)}</text>`).join("")}${ty.map(t=>`<text x="${L-8}" y="${Y(t)+4}" text-anchor="end">${f(t,Number.isInteger(t)?0:1)}</text>`).join("")}</g>`;
+  s+=`<text class="lbl" x="${(L+W-Rm)/2}" y="${H-6}" text-anchor="middle">${view==="x"?"X (observed treatment)":"X̂ (instrument-driven part of X)"}</text><text class="lbl" x="12" y="${T+4}" transform="rotate(-90 12 ${T+4})" text-anchor="end">Y</text>`;
+  const r=n>800?1.6:n>250?2.2:2.8,U=shock.u,cut=0.4307,grp=i=>U[i]<-cut?0:U[i]>cut?2:1,ds=["","",""];let d="";
+  for(let i=0;i<n;i++){const cx=X(hx[i]),cy=Y(y[i]);if(cx<L||cx>W-Rm||cy<T||cy>H-B)continue;const dot=`M${(cx-r).toFixed(1)} ${cy.toFixed(1)}a${r} ${r} 0 1 0 ${2*r} 0a${r} ${r} 0 1 0 ${-2*r} 0`;if(col)ds[grp(i)]+=dot;else d+=dot;}
+  s+=`<g clip-path="url(#${cid})">`+(col?ds.map((p,g)=>`<path class="pts-g${g}" d="${p}"/>`).join(""):`<path class="pts" d="${d}"/>`);
+  const line=(b0,b1,c)=>`<line class="${c}" x1="${X(x0)}" y1="${Y(b0+b1*x0)}" x2="${X(x1)}" y2="${Y(b0+b1*x1)}"/>`;
+  let mx=0,my=0;for(let i=0;i<n;i++){mx+=hx[i];my+=y[i];}mx/=n;my/=n;
+  s+=line(my-S.beta*mx,S.beta,"l-true");
+  const within=[];
+  if(col){for(let g=0;g<3;g++){const xs=[],ys=[];for(let i=0;i<n;i++)if(grp(i)===g){xs.push(xy.x[i]);ys.push(y[i]);}
+    if(xs.length<10){within.push(NaN);continue;}
+    let ax=0,ay=0;for(let i=0;i<xs.length;i++){ax+=xs[i];ay+=ys[i];}ax/=xs.length;ay/=xs.length;
+    let sxy=0,sxx=0;for(let i=0;i<xs.length;i++){sxy+=(xs[i]-ax)*(ys[i]-ay);sxx+=(xs[i]-ax)**2;}
+    const b=sxy/sxx,b0=ay-b*ax,xa=quant(xs,.05),xb=quant(xs,.95);within.push(b);
+    const seg=`x1="${X(xa)}" y1="${Y(b0+b*xa)}" x2="${X(xb)}" y2="${Y(b0+b*xb)}"`;
+    s+=`<line class="l-halo" ${seg}/><line class="l-g${g}" ${seg}/>`;}}
+  if(view==="x")s+=line(a.ols.b0,a.ols.b,"l-ols");
+  if(a.iv&&!col)s+=line(a.iv.b0,a.iv.b,"l-iv");
+  s+=`</g>`;$(svgId).innerHTML=s;
+  return within;
+}
+function renderScatter(){
+  const{a,pop}=cur;
+  // Chart 1: the data as an analyst would see them
+  drawScatter("scatter",S.view,false);
+  $("axnote").innerHTML=S.view==="x"
+    ?`Each point is one case, and this is all an analyst would see. OLS fits one line through the whole cloud. Nothing in the chart signals a problem: the points rise with <var>X</var>, and the OLS line fits them well. ${pop.endog?`Yet its slope of ${f(a.ols.b)} is not the true effect of ${f(S.beta)}. The next chart shows why.`:`Here its slope of ${f(a.ols.b)} is close to the true effect of ${f(S.beta)}, because the current settings include no confounding.`}`
+    :"Here <var>X</var> is replaced by its first-stage fitted value <var>X̂</var>, the part driven only by the instruments. The slope of <var>Y</var> on <var>X̂</var> is the 2SLS estimate.";
+  $("sc-legend").innerHTML=`<span><i class="t"></i>True effect β</span>`+(S.view==="x"?`<span><i class="o"></i>OLS</span>`:"")+`<span><i class="v"></i>2SLS</span>`;
+  // Chart 2: the same data with U revealed
+  const w=drawScatter("scatter2","x",true),gd=S.gamma*S.delta;
+  let n2=`These are the same cases as in the chart above, now colored by which third of the unobserved confounder <var>U</var> each one falls in. A real analyst could not draw this chart; we can only because the data are simulated. `;
+  if(Math.abs(gd)<1e-9)n2+=`With ${S.gamma===0?"γ":"δ"} = 0, <var>U</var> does not connect <var>X</var> and <var>Y</var>, so the groups are not sorted along both axes, and the slopes within the groups (${f(w[0])}, ${f(w[1])}, ${f(w[2])}) are about the same as the OLS slope of ${f(a.ols.b)}. With no back-door path, there is nothing for OLS to pick up.`;
+  else n2+=`Two things that were hidden become visible. First, <var>U</var> sorts the cases: high-<var>U</var> cases sit further to the right, because γ = ${f(S.gamma)}, and ${S.delta>0?"higher up":"lower down"}, because δ = ${f(S.delta)}. Second, within each group, where <var>U</var> is roughly held constant, the slope of <var>Y</var> on <var>X</var> is close to the true β of ${f(S.beta)}: the thin lines have slopes of ${f(w[0])} (low <var>U</var>), ${f(w[1])} (middle), and ${f(w[2])} (high). The OLS line, with a slope of ${f(a.ols.b)}, is ${gd>0?"steeper":"flatter"} because it runs across the groups. It treats the vertical gaps between them, which <var>U</var> created, as part of the effect of <var>X</var>. That is the bias term Cov(<var>X</var>, <var>u</var>) / Var(<var>X</var>) made visible. The small remaining difference between the within-group slopes and β comes from <var>U</var> still varying a little inside each third.`;
+  $("axnote2").innerHTML=n2;
+  $("sc-legend2").innerHTML=`<span><i class="t"></i>True effect β</span><span><i class="o"></i>OLS</span><span><b class="dot g0"></b>Low <var>U</var></span><span><b class="dot g1"></b>Middle <var>U</var></span><span><b class="dot g2"></b>High <var>U</var></span><span><i class="w"></i>Fit within a <var>U</var> group</span>`;
+}
+function effText(a,q){
+  if(!a.Feff)return "The conventional <var>F</var> assumes that the first-stage errors are homoskedastic and independent. When they are not, as with nested data, it can overstate instrument strength, and the effective <var>F</var> (Montiel Olea &amp; Pflueger, 2013), which uses a robust estimate of the first stage's sampling error, is reported instead. In the current example, the errors are independent, so the effective <var>F</var> equals the conventional <var>F</var> and is not shown separately. Raise the clustering ICC to see the two diverge.";
+  const Fc=a.F,Fe=a.Feff.F,ratio=Fc/Fe;
+  let t=`The conventional <var>F</var> assumes that the first-stage errors are homoskedastic and independent. In the current example, the cases are nested in ${a.Feff.G} groups of 10 with an ICC of ${f(S.icc)}, so that assumption fails, and the conventional <var>F</var> treats the ${a.n} cases as more informative than they are. The effective <var>F</var> (Montiel Olea &amp; Pflueger, 2013) replaces its denominator with a cluster-robust estimate of the first stage's sampling error. Here it is ${fbig(Fe)}, compared with a conventional <var>F</var> of ${fbig(Fc)}`;
+  t+=ratio>1.15?`, so the conventional statistic overstates instrument strength by a factor of about ${f(ratio,1)}.`:ratio<0.87?`. In this sample the conventional statistic is the smaller of the two, which can happen by chance.`:`, so in this sample the two are similar.`;
+  t+=q===1?" With one instrument, Montiel Olea and Pflueger's critical value for keeping the worst-case bias of 2SLS below 10% is 23.1.":" With several instruments, Montiel Olea and Pflueger's critical values depend on the data, so the lab compares the effective F with the rule-of-thumb value of 10.";
+  return t;}
+function sjText(a){if(!a.J)return"";const icc=S.icc,Sr=a.sar.p<.05,Jr=a.J.p<.05,J=fbig(a.J.J),Sv=fbig(a.sar.S);
+  let t="Sargan's <var>S</var> assumes that the errors are homoskedastic and independent across cases. With nested data, such as employees within teams, errors are usually correlated within groups, so this is a dubious assumption, and Hansen's <var>J</var>, which allows for heteroskedasticity and for clustering, is used instead. ";
+  if(icc===0){t+=`In the current example, the assumption holds, so Hansen's <var>J</var> = ${J} (p ${fp(a.J.p)}) is close to <var>S</var> = ${Sv}`+(Sr===Jr?" and leads to the same conclusion.":". Here the two fall on opposite sides of the .05 cutoff, but the difference reflects sampling noise, not a failure of the assumption.");}
+  else{t+=`In the current example, the cases are nested in ${a.J.G} groups of 10 with an ICC of ${f(icc)}, so the independence assumption fails. <var>S</var> treats all ${a.n} cases as independent, which overstates how much information the sample contains, so <var>S</var> tends to be too large and rejects valid instruments too often. Hansen's <var>J</var>, computed with cluster-robust weights, is ${J} (p ${fp(a.J.p)}), compared with <var>S</var> = ${Sv}.`;
+    t+=Sr&&!Jr?" Here <var>S</var> rejects the null hypothesis and <var>J</var> does not; <var>J</var> is the statistic to report.":!Sr&&Jr?" Here <var>J</var> rejects the null hypothesis and <var>S</var> does not.":" Here both lead to the same conclusion, but <var>J</var> is the statistic to report.";
+    t+=" The repeated-sample study in §5 shows how often each one rejects at these settings.";
+    if(a.J.G<20)t+=` With only ${a.J.G} groups, the cluster-robust weights are themselves imprecise, so <var>J</var> should be interpreted cautiously.`;}
+  return t;}
+function pill(cls,txt){return`<span class="pill ${cls}">${txt}</span>`;}
+function renderTests(){
+  const{a,pop}=cur,n=a.n,q=a.q,sy=q===1?16.38:19.93;
+  // relevance
+  let fv=a.F>=sy?pill("good","Strong"):a.F>=10?pill("warn","Borderline"):pill("bad","Weak");
+  const c1=`<article class="test"><div class="who">Relevance · first-stage F</div><div class="q">Is <var>Z</var> strongly related to <var>X</var>?</div>
+    <div class="h0">H₀: the excluded instruments have no effect on <var>X</var>.</div>
+    <div class="stat"><span class="big">F(${q}, ${n-q-1}) = ${fbig(a.F)}</span>${fv}<span class="sub">p ${fp(a.pF)} · first-stage R² = ${f(a.R2,3)}</span></div>${a.Feff?`<div class="stat"><span class="big">Effective F = ${fbig(a.Feff.F)}</span>${a.Feff.F>=(q===1?23.1:10)?pill("good","Strong"):pill("bad","Weak")}<span class="sub">cluster-robust, ${a.Feff.G} groups · benchmark ${q===1?"23.1 (Montiel Olea &amp; Pflueger)":"10 (rule of thumb)"}</span></div>`:""}
+    <dl><dt>How</dt><dd>Run the first-stage regression of <var>X</var> on the instruments (plus any control variables in the outcome equation) and test whether the instruments' coefficients are jointly zero. The <var>F</var> statistic compares the variation in <var>X</var> that the instruments explain with the variation they leave unexplained, adjusted for the number of instruments and the sample size. With one instrument, <var>F</var> is the square of the <var>t</var> statistic for its coefficient.<details class="why-box" style="margin-top:8px"><summary>Why include control variables?</summary><div class="stack" style="gap:8px"><p><strong>Exogeneity often holds only conditional on the controls.</strong> An instrument such as distance to the nearest college is plausibly exogenous only after controlling for region and urban residence, because colleges cluster in cities, where wages are higher. Those controls, <var>W</var>, then belong in the outcome equation, <var>Y</var> = β<var>X</var> + γ<var>W</var> + <var>u</var>. 2SLS uses every exogenous variable in that equation in the first stage as well, <var>X</var> = π<var>Z</var> + δ<var>W</var> + <var>v</var>. Leaving <var>W</var> out of the first stage while keeping it in the outcome equation would let <var>X̂</var> pick up variation tied to <var>W</var> and make the estimates inconsistent.</p><p><strong>The strength that matters is the instrument's unique contribution.</strong> With controls in the model, what identifies β is the part of <var>Z</var>'s relationship with <var>X</var> that <var>W</var> does not already explain. If <var>Z</var> is related to <var>X</var> only because both are related to region, then once region is controlled, <var>Z</var> adds nothing. The first-stage <var>F</var> therefore tests the instruments' coefficients, π, holding <var>W</var> constant (a partial <var>F</var>), and the relevant effect size is the instruments' partial <var>R</var>². A first-stage regression without the controls could make a weak instrument look strong.</p><p>The lab's simulated model has no control variables, so its first stage includes only the instruments.</p></div></details></dd>
+    <dt>Benchmarks</dt><dd>F &gt; 10 (Staiger &amp; Stock, 1997). Stock–Yogo critical value that keeps the actual rejection rate of a nominal 5% test at or below 10%: ${sy} with ${q===1?"one instrument":"two instruments"}.</dd><dd class="para">${effText(a,q)}</dd>
+    <dt>Tells you</dt><dd>Whether <var>Z</var> is related to <var>X</var> strongly enough. Weak instruments pull 2SLS toward OLS and make its intervals and tests unreliable.</dd>
+    <dt>Cannot tell you</dt><dd>Anything about exogeneity. A strong instrument can still be invalid.</dd></dl>
+    <div class="truth"><b>The answer to the question is:</b> ${(()=>{const I=S.both?"The instruments":"The instrument",pl=S.both;return pop.mu2<1e-9?`<b>No.</b> ${I} ${pl?"are":"is"} unrelated to <var>X</var>, so β is not identified.`:pop.EF<10?`<b>Only weakly.</b> ${I} ${pl?"are":"is"} related to <var>X</var>, but too weakly at this sample size for 2SLS to be reliable.`:pop.EF<sy?`<b>Yes, but only moderately.</b> ${I} ${pl?"are":"is"} related to <var>X</var>, though not strongly enough to rule out some distortion in 2SLS inference.`:`<b>Yes, strongly.</b> ${I} ${pl?"are":"is"} related to <var>X</var> strongly enough for 2SLS to behave well at this sample size.`;})()} The concentration parameter is μ² = ${fbig(pop.mu2)}. It measures the first stage's signal relative to its noise: the variation in <var>X</var> that the instruments explain across the whole sample, divided by the first-stage error variance, so it grows with both instrument strength and <var>n</var>. Stock, Wright, and Yogo (2002) recommend μ²/<var>k</var>, where <var>k</var> is the number of instruments, as the measure of instrument strength, building on Rothenberg (1984). ${S.icc>0?`With nested data, clustering reduces the information in the sample by a design effect of about ${f(pop.deff,1)}, so the effective strength is roughly 1 + μ²/(<var>k</var> × ${f(pop.deff,1)}) = ${fbig(pop.EF)}, which the effective <var>F</var> estimates.`:`The first-stage <var>F</var> estimates it, averaging about 1 + μ²/<var>k</var> = ${fbig(pop.EF)} at these settings.`}</div></article>`;
+  // DWH
+  const d=a.dwh;let c2;
+  if(d){const rej=d.p<.05;
+    c2=`<article class="test"><div class="who">Durbin–Wu–Hausman</div><div class="q">Is <var>X</var> exogenous?</div>
+    <div class="h0">H₀: <var>X</var> is exogenous, so OLS and 2SLS estimate the same β.</div>
+    <div class="stat"><span class="big">F(1, ${d.df}) = ${fbig(d.F)}</span>${rej?pill("info","Reject H₀"):pill("na","Retain H₀")}<span class="sub">p ${fp(d.p)} · coefficient on v̂ = ${f(d.rho)}</span></div>
+    <dl><dt>How</dt><dd>Save the residual from the first stage, v̂ = <var>X</var> − <var>X̂</var>, the part of <var>X</var> that the instruments do not explain. Then regress <var>Y</var> on both <var>X</var> and v̂. The <var>F</var> test (equivalently, the squared <var>t</var> test) is a test of the significance of the effect of v̂ on <var>Y</var>, holding <var>X</var> constant. If <var>X</var> is exogenous, the unexplained part of <var>X</var> carries no information about <var>u</var>, so v̂ should not predict <var>Y</var> once <var>X</var> is in the model. A significant coefficient means that the part of <var>X</var> the instruments leave out is related to the error, which is what endogeneity is. The test is equivalent to asking whether the OLS and 2SLS estimates differ by more than sampling error.</dd>
+    <dt>Tells you</dt><dd>Whether the gap between OLS and 2SLS exceeds sampling noise. Rejecting favors 2SLS.</dd>
+    <dt>Cannot tell you</dt><dd>It assumes valid instruments. With weak instruments it has little power, so retaining H₀ is weak evidence that <var>X</var> is exogenous.</dd></dl>
+    <div class="truth"><b>The answer to the question is:</b> ${pop.endog?"<b>No.</b>":"<b>Yes.</b>"} Cov(<var>X</var>, <var>u</var>) = ${f(pop.covXu)}, so <var>X</var> is ${pop.endog?"endogenous, and OLS is inappropriate":"exogenous"}${pop.valid?".":", but the instruments are invalid, so this test compares two biased estimators."}</div></article>`;}
+  // Sargan
+  let c3;
+  if(a.sar){const rej=a.sar.p<.05;let tr;
+    const b1=S.phi1!==0,b2=S.phi2!==0,sr=rej,hasJ=!!a.J,tst=hasJ?"overidentification tests":"overidentification test";
+    const ok1=S.pi1>0.005,ok2=S.pi2>0.005,r1=ok1?S.beta+S.phi1/S.pi1:NaN,r2=ok2?S.beta+S.phi2/S.pi2:NaN,gap=Math.abs(r1-r2);
+    const status=pop.valid?"Both instruments are exogenous (φ₁ = φ₂ = 0).":b1&&b2?`Neither instrument is exogenous (φ₁ = ${f(S.phi1)}, φ₂ = ${f(S.phi2)}).`:`${b1?"Z₁":"Z₂"} is invalid (φ${b1?"₁":"₂"} = ${f(b1?S.phi1:S.phi2)}), while ${b1?"Z₂":"Z₁"} is exogenous.`;
+    if(!ok1||!ok2){tr=`<b>This cannot be judged here.</b> ${!ok1?"Z₁":"Z₂"} is unrelated to <var>X</var>, so it implies no estimate of β to compare. ${status}`;}
+    else if(pop.valid){tr=`<b>Yes.</b> Each instrument on its own implies the true value, β = ${f(S.beta)}. ${status}`;
+      if(sr)tr+=` The ${tst} nonetheless ${hasJ?"reject":"rejects"} H₀ in this sample. With valid instruments, that happens about 5% of the time by chance (a Type I error).`;}
+    else if(gap<0.01){tr=`<b>Yes, but on the wrong value.</b> Z₁ on its own implies β ≈ ${f(r1)} and Z₂ implies β ≈ ${f(r2)}, although the true value is ${f(S.beta)}. ${status} Because the two violations are in proportion to the instruments' strength, the instruments agree with each other, and this test has no power to detect the problem.`;}
+    else{tr=`<b>No.</b> Z₁ on its own implies β ≈ ${f(r1)} and Z₂ implies β ≈ ${f(r2)}, a difference of ${f(gap)}. ${status}`;
+      if(!sr)tr+=` The ${tst} nonetheless ${hasJ?"retain":"retains"} H₀ in this sample. That is not a contradiction: retaining H₀ means the data do not show clear disagreement, not that the instruments agree or are valid. A difference of ${f(gap)} is hard to detect at n = ${a.n}, so the test is likely to miss it (a Type II error). The repeated-sample study in §5 reports how often the test catches it at these settings.`;}
+    c3=`<article class="test"><div class="who">Sargan overidentification</div><div class="q">Do the instruments agree with one another?</div>
+    <div class="h0">H₀: every instrument is uncorrelated with <var>u</var>. The test can detect a violation only when it makes the instruments imply different values of β.</div>
+    <div class="stat"><span class="big">S = nR² = ${fbig(a.sar.S)}</span>${rej?pill("bad","Reject H₀"):pill("good","Retain H₀")}<span class="sub">χ²(${a.sar.df}), p ${fp(a.sar.p)}</span></div>${a.J?`<div class="stat"><span class="big">Hansen's J = ${fbig(a.J.J)}</span>${a.J.p<.05?pill("bad","Reject H₀"):pill("good","Retain H₀")}<span class="sub">χ²(${a.J.df}), p ${fp(a.J.p)} · ${a.J.G?`cluster-robust, ${a.J.G} groups`:"heteroskedasticity-robust"}</span></div>`:""}
+    <dl><dt>How</dt><dd>Regress the 2SLS residuals, that is, the residuals computed using β̂<sub>IV</sub> rather than β̂<sub>OLS</sub> (û = <var>Y</var> − β̂<sub>0</sub> − β̂<sub>IV</sub><var>X</var>, with the observed <var>X</var>), on all of the instruments. If the instruments are exogenous, they should not explain these residuals, so the <var>R</var>² from this regression should be near zero. The test statistic <var>S</var> is that <var>R</var>² multiplied by the sample size, <var>S</var> = <var>n</var>·<var>R</var>². With <var>L</var> instruments and <var>K</var> endogenous regressors, <var>S</var> follows a χ² distribution with <var>L</var> − <var>K</var> degrees of freedom when the null hypothesis is true.</dd><dd class="para">${sjText(a)}</dd>
+    <dt>Tells you</dt><dd>Whether the instruments disagree about β by more than chance. Rejecting means at least one is invalid.</dd>
+    <dt>Cannot tell you</dt><dd>Which instrument is bad, or whether all are invalid in the same direction. It tests agreement, not validity.</dd></dl>
+    <div class="truth"><b>The answer to the question is:</b> ${tr}</div></article>`;}
+  else{c3=`<article class="test"><div class="who">Sargan overidentification</div><div class="q">Do the instruments agree with one another?</div>
+    <div class="stat"><span class="big">Not available</span>${pill("na","Just-identified")}<span class="sub">1 instrument, 1 endogenous regressor: L − K = 0</span></div>
+    <dl><dt>Why</dt><dd>With exactly as many instruments as endogenous regressors, the 2SLS residuals are orthogonal to the instrument by construction. There is nothing left over to test.</dd>
+    <dt>What you can do instead</dt><dd>Defend exclusion with design and theory. Run falsification checks: <var>Z</var> should be balanced on pre-treatment covariates and unrelated to <var>Y</var> where it cannot move <var>X</var>. Report how large a violation would overturn the result.</dd></dl>
+    <div class="truth"><b>The answer to the question is:</b> <b>There is nothing to compare.</b> With only one instrument, there is no second estimate of β for Z₁ to agree or disagree with. ${pop.valid?"Z₁ is exogenous (φ₁ = 0).":`Z₁ is invalid (φ₁ = ${f(S.phi1)}), and no test on these data can reveal it.`}</div></article>`;}
+  $("testcards").innerHTML=c1+(c2||"")+c3;
+}
+
+/* ================= Sensitivity analysis (Conley, Hansen & Rossi, 2012, union of CIs) ================= */
+let sensOn=false;
+function sensSetup(){
+  const{xy,a}=cur,n=a.n,xh=a.xhat,x=xy.x,y=xy.y,Z=S.both?[xy.z1,xy.z2]:[xy.z1];
+  const mean=v=>{let s=0;for(let i=0;i<n;i++)s+=v[i];return s/n;};
+  const mh=mean(xh),mx=mean(x),my=mean(y),mz=Z.map(mean);
+  let shh=0,shy=0;const shz=Z.map(()=>0);
+  for(let i=0;i<n;i++){const dh=xh[i]-mh;shh+=dh*dh;shy+=dh*(y[i]-my);for(let k=0;k<Z.length;k++)shz[k]+=dh*(Z[k][i]-mz[k]);}
+  return c=>{let num=shy;for(let k=0;k<Z.length;k++)num-=c[k]*shz[k];const b=num/shh;
+    let myA=my;for(let k=0;k<Z.length;k++)myA-=c[k]*mz[k];const b0=myA-b*mx;
+    let ee=0;for(let i=0;i<n;i++){let ya=y[i];for(let k=0;k<Z.length;k++)ya-=c[k]*Z[k][i];const e=ya-b0-b*x[i];ee+=e*e;}
+    const se=Math.sqrt(ee/(n-2)/shh);return{b,se,lo:b-1.96*se,hi:b+1.96*se};};
+}
+function sensGrid(d,q,steps){const g=[];for(let i=0;i<steps;i++)g.push(steps===1?0:-d+2*d*i/(steps-1));
+  if(q===1)return g.map(v=>[v]);const out=[];g.forEach(a=>g.forEach(b=>out.push([a,b])));return out;}
+function runSens(){
+  if(!cur.a.iv)return;
+  const d=+$("s-dmax").value,q=S.both?2:1,est=sensSetup();
+  const grid=sensGrid(d,q,d===0?1:21).map(est);
+  const bmin=Math.min(...grid.map(r=>r.b)),bmax=Math.max(...grid.map(r=>r.b));
+  const L=Math.min(...grid.map(r=>r.lo)),U=Math.max(...grid.map(r=>r.hi));
+  const excl0=L>0||U<0,cover=L<=S.beta&&S.beta<=U;
+  const base=est(q===1?[0]:[0,0]);
+  let brk=null;
+  if(base.lo<=0&&base.hi>=0)brk=0;
+  else for(let dd=0.005;dd<=1.0001;dd+=0.005){const g=sensGrid(dd,q,3).map(est);if(Math.min(...g.map(r=>r.lo))<=0&&Math.max(...g.map(r=>r.hi))>=0){brk=dd;break;}}
+  // plot along a common direct effect c applied to every instrument
+  const W=560,H=230,Lm=52,Rm=14,T=14,B=40,cs=[],K=41,span=d===0?0.05:d;
+  for(let i=0;i<K;i++){const c=-span+2*span*i/(K-1);cs.push({c,...est(q===1?[c]:[c,c])});}
+  let ylo=Math.min(0,S.beta,...cs.map(r=>r.lo)),yhi=Math.max(0,S.beta,...cs.map(r=>r.hi));const pad=(yhi-ylo)*.08||.2;ylo-=pad;yhi+=pad;
+  const X=v=>Lm+(v+span)/(2*span)*(W-Lm-Rm),Y=v=>H-B-(v-ylo)/(yhi-ylo)*(H-B-T);
+  let s=`<g class="grid">${niceTicks(ylo,yhi,5).map(t=>`<line x1="${Lm}" x2="${W-Rm}" y1="${Y(t)}" y2="${Y(t)}"/>`).join("")}</g>`;
+  s+=`<g class="axis">${niceTicks(-span,span,6).map(t=>`<text x="${X(t)}" y="${H-B+16}" text-anchor="middle">${f(t,2)}</text>`).join("")}${niceTicks(ylo,yhi,5).map(t=>`<text x="${Lm-8}" y="${Y(t)+4}" text-anchor="end">${f(t,1)}</text>`).join("")}</g>`;
+  const band=cs.map(r=>`${X(r.c).toFixed(1)},${Y(r.hi).toFixed(1)}`).join(" ")+" "+cs.slice().reverse().map(r=>`${X(r.c).toFixed(1)},${Y(r.lo).toFixed(1)}`).join(" ");
+  s+=`<polygon class="s-band" points="${band}"/>`;
+  s+=`<line class="s-zero" x1="${Lm}" x2="${W-Rm}" y1="${Y(0)}" y2="${Y(0)}"/><line class="l-true" x1="${Lm}" x2="${W-Rm}" y1="${Y(S.beta)}" y2="${Y(S.beta)}"/>`;
+  s+=`<polyline class="l-iv" points="${cs.map(r=>`${X(r.c).toFixed(1)},${Y(r.b).toFixed(1)}`).join(" ")}"/>`;
+  s+=`<circle class="f-iv" cx="${X(0)}" cy="${Y(base.b)}" r="4.5"/>`;
+  s+=`<text class="lbl" x="${(Lm+W-Rm)/2}" y="${H-6}" text-anchor="middle">Assumed direct effect of ${q===2?"each instrument":"Z₁"} on Y</text><text class="lbl" x="${W-Rm}" y="${Y(S.beta)-6}" text-anchor="end">true β</text><text class="lbl" x="${W-Rm}" y="${Y(0)-6}" text-anchor="end">zero</text>`;
+  const truthIn=Math.abs(S.phi1)<=d+1e-9&&(q===1||Math.abs(S.phi2)<=d+1e-9);
+  $("sens-out").innerHTML=`
+    <div class="alg">
+      <div class="r"><span>Conventional 2SLS (no violation assumed)</span><span class="v">${f(base.b)} [${f(base.lo)}, ${f(base.hi)}]</span></div>
+      <div class="r"><span>Range of 2SLS estimates, direct effects from ${f(-d)} to ${f(d)}</span><span class="v">${f(bmin)} to ${f(bmax)}</span></div>
+      <div class="r"><span>Union of the 95% confidence intervals</span><span class="v">[${f(L)}, ${f(U)}] ${excl0?pill("good","Excludes zero"):pill("warn","Includes zero")}</span></div>
+      <div class="r"><span>Breakdown point: smallest direct effect at which the union first includes zero</span><span class="v">${brk===null?"above 1.00":brk===0?"0 (the conventional interval already includes zero)":f(brk,3)}</span></div>
+    </div>
+    <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="2SLS estimate and 95% interval across assumed direct effects">${s}</svg>
+    <p style="font-size:.86rem;color:var(--muted)">The line shows the 2SLS estimate and the shaded band its 95% interval as the assumed direct effect changes${q===2?", with the same direct effect assumed for both instruments. The union reported above also covers combinations in which the two instruments' direct effects differ":""}. The dot marks the conventional estimate, which assumes no direct effect.</p>
+    <div class="truth"><b>In this simulation:</b> the actual direct effect${q===2?`s are φ₁ = ${f(S.phi1)} and φ₂ = ${f(S.phi2)}`:` is φ₁ = ${f(S.phi1)}`}, which ${q===2?(truthIn?"lie":"fall"):(truthIn?"lies":"falls")} ${truthIn?"inside":"outside"} the range you assumed. The union of intervals ${cover?"covers":"misses"} the true β of ${f(S.beta)}.</div>`;
+  $("sens-out").hidden=false;
+}
+
+/* ================= Monte Carlo ================= */
+let mcSeed=1,mcToken=0,mcTimer=null;
+function scheduleMC(){clearTimeout(mcTimer);$("mc-status").textContent="Settings changed…";mcTimer=setTimeout(runMC,350);}
+function runMC(){
+  clearTimeout(mcTimer);const tok=++mcToken,R=+$("mc-r").value,n=NS[S.nIdx],p={...S},both=S.both;
+  const out={ols:[],iv:[],covO:0,covI:0,F10:0,dwh:0,sar:0,nsar:0,nJ:0,jr:0,k:0};let r=0;
+  const step=()=>{if(tok!==mcToken)return;const t0=performance.now();
+    while(r<R&&performance.now()-t0<14){const sh=shocks(n,(mcSeed*1000003+r*7919+n)>>>0),xy=outcome(sh,p),a=analyze(sh,xy,both);r++;
+      if(a.fail||!a.iv)continue;out.k++;out.ols.push(a.ols.b);out.iv.push(a.iv.b);
+      if(Math.abs(a.ols.b-p.beta)<=1.96*a.ols.se)out.covO++;if(Math.abs(a.iv.b-p.beta)<=1.96*a.iv.se)out.covI++;
+      if(a.F>10)out.F10++;if(a.dwh&&a.dwh.p<.05)out.dwh++;if(a.sar){out.nsar++;if(a.sar.p<.05)out.sar++;}if(a.J){out.nJ++;if(a.J.p<.05)out.jr++;}}
+    $("mc-status").textContent=`${r} / ${R} samples of n = ${n}`;
+    if(r<R)setTimeout(step,0);else{renderMC(out,p,both,n);$("mc-status").textContent=`${out.k} samples of n = ${n}`;}};
+  step();
+}
+function renderMC(o,p,both,n){
+  const all=o.ols.concat(o.iv);let lo=Math.min(quant(all,.01),p.beta),hi=Math.max(quant(all,.99),p.beta);const pad=(hi-lo)*.06||.2;lo-=pad;hi+=pad;
+  const NB=48,bw=(hi-lo)/NB,bin=arr=>{const c=new Array(NB).fill(0);let out=0;arr.forEach(v=>{const i=Math.floor((v-lo)/bw);if(i<0||i>=NB)out++;else c[i]++;});return{c,out};};
+  const bo=bin(o.ols),bi=bin(o.iv),mx=Math.max(...bo.c,...bi.c,1);
+  const W=640,H=280,L=40,Rm=12,T=14,B=36,X=v=>L+(v-lo)/(hi-lo)*(W-L-Rm),Y=c=>H-B-c/mx*(H-B-T);
+  let s=`<g class="axis">${niceTicks(lo,hi,8).map(t=>`<line x1="${X(t)}" x2="${X(t)}" y1="${H-B}" y2="${H-B+4}"/><text x="${X(t)}" y="${H-B+18}" text-anchor="middle">${f(t,Number.isInteger(t)?0:1)}</text>`).join("")}<line x1="${L}" x2="${W-Rm}" y1="${H-B}" y2="${H-B}"/></g>`;
+  const bars=(b,c)=>b.c.map((v,i)=>v?`<rect x="${(X(lo+i*bw)+.5).toFixed(1)}" y="${Y(v).toFixed(1)}" width="${Math.max(X(lo+bw)-X(lo)-1,1).toFixed(1)}" height="${(H-B-Y(v)).toFixed(1)}" class="${c}" fill-opacity=".45"/>`:"").join("");
+  s+=bars(bo,"f-ols")+bars(bi,"f-iv");
+  s+=`<line class="l-true" x1="${X(p.beta)}" x2="${X(p.beta)}" y1="${T-4}" y2="${H-B}"/><text class="lbl" x="${X(p.beta)+5}" y="${T+6}">β = ${f(p.beta)}</text>`;
+  s+=`<text class="lbl" x="${(L+W-Rm)/2}" y="${H-4}" text-anchor="middle">Estimated β across samples</text>`;
+  const outs=bi.out+bo.out;$("mc-out").textContent=outs?`${outs} extreme estimate${outs===1?"":"s"} fall${outs===1?"s":""} outside the range of the chart and ${outs===1?"is":"are"} not shown.`:"";
+  $("hist").innerHTML=s;
+  const row=(nm,k,arr,cov)=>{const md=quant(arr,.5);return`<tr><td><span class="key ${k}"></span>${nm}</td><td class="num">${f(md,3)}</td><td class="num">${fs_(md-p.beta,3)}</td><td class="num">${f(quant(arr,.75)-quant(arr,.25),3)}</td><td class="num">${(100*cov/o.k).toFixed(1)}%</td></tr>`;};
+  $("mc-body").innerHTML=row("OLS","k-ols",o.ols,o.covO)+row("2SLS","k-iv",o.iv,o.covI);
+  const pop=population(p,n,both),pct=v=>(100*v/o.k).toFixed(1)+"%";
+  const ir1=p.pi1>0.005?p.beta+p.phi1/p.pi1:NaN,ir2=p.pi2>0.005?p.beta+p.phi2/p.pi2:NaN,igap=Math.abs(ir1-ir2);
+  const agreeLab=pop.valid?"Size: instruments valid, so they agree; nominal 5%":!(igap>=0)?"Instruments cannot be compared":igap<0.01?`Instruments invalid but in agreement (both imply β ≈ ${f(ir1)}), so a rejection can only be chance`:`Power to detect disagreement: Z₁ implies β ≈ ${f(ir1)}, Z₂ implies ${f(ir2)}`;
+  const dlabel=pop.valid?(pop.endog?"Power: X is endogenous":"Size: X is exogenous, nominal 5%"):"Instruments invalid: compares two biased estimators";
+  const sBox=o.nsar?`<div class="rate"><div class="k" style="color:var(--bad)">Sargan rejects</div><div class="v">${(100*o.sar/o.nsar).toFixed(1)}%</div><div class="l">${agreeLab}</div></div>`
+    :`<div class="rate"><div class="k" style="color:var(--muted)">Sargan</div><div class="v">—</div><div class="l">Not defined with one instrument</div></div>`;
+  const jBox=o.nJ?`<div class="rate"><div class="k" style="color:var(--bad)">Hansen's J rejects</div><div class="v">${(100*o.jr/o.nJ).toFixed(1)}%</div><div class="l">${agreeLab}${p.icc>0?", cluster-robust":""}</div></div>`:"";
+  $("mc-rates").innerHTML=`<div class="rate"><div class="k" style="color:var(--z)">First-stage F &gt; 10</div><div class="v">${pct(o.F10)}</div><div class="l">Share of samples passing the rule of thumb</div></div>
+    <div class="rate"><div class="k" style="color:var(--iv)">DWH rejects</div><div class="v">${pct(o.dwh)}</div><div class="l">${dlabel}</div></div>`+sBox+jBox;
+  // plain-language reading of the results
+  const mdO=quant(o.ols,.5),mdI=quant(o.iv,.5),iqO=quant(o.ols,.75)-quant(o.ols,.25),iqI=quant(o.iv,.75)-quant(o.iv,.25);
+  const cO=100*o.covO/o.k,cI=100*o.covI/o.k,near=v=>Math.abs(v-p.beta)<0.03,weak=o.F10/o.k<0.5;
+  let h=`<div class="eyebrow">Reading these results</div>`;
+  h+=`<p><b>The histogram.</b> Each bar counts how many of the ${o.k} simulated samples produced an estimate in that range, so the two shapes are the sampling distributions of OLS and 2SLS: what each method would report if the study were repeated many times. The OLS estimates center on about ${f(mdO)}, ${near(mdO)?"close to the true β of "+f(p.beta)+", because the current settings include no endogeneity.":(Math.abs(mdO-p.beta)>0.1?"far away":"away")+" from the true β of "+f(p.beta)+". That gap is bias: unlike sampling error, it does not average out across samples, so repeating the study does not make it go away."} The 2SLS estimates center on about ${f(mdI)}, ${!pop.valid?"also away from β, because the instruments are invalid.":near(mdI)?"close to β.":weak?"pulled toward OLS, because the instruments are weak.":"close to β."} ${iqI>iqO*1.15?`They are also more spread out, with an interquartile range of ${f(iqI,3)} compared with ${f(iqO,3)} for OLS. That is the precision cost of using only the part of <var>X</var> that the instruments explain.`:""}${weak?" With instruments this weak, the 2SLS distribution also has long tails, so a single study can land far from β in either direction.":""}</p>`;
+  let cov=`<p><b>The table.</b> The last column shows how often each method's 95% confidence interval contained the true β. A trustworthy interval should do so about 95% of the time. OLS did so in ${cO.toFixed(1)}% of samples`;
+  cov+=near(mdO)?".":", because its intervals are centered on the wrong value.";
+  cov+=` 2SLS did so in ${cI.toFixed(1)}% of samples`;
+  cov+=cI>=92?".":!pop.valid?", because the instruments are invalid, so its intervals are centered on the wrong value too.":p.icc>0?", because the conventional standard errors used here ignore the clustering, so the intervals are too narrow.":weak?", because conventional intervals are unreliable when the instruments are weak, which is why §2 recommends Anderson–Rubin intervals.":".";
+  h+=cov+`</p>`;
+  h+=`<p><b>The rejection rates.</b> These show how often each test rejected its null hypothesis across the ${o.k} samples. When the null hypothesis is true, the rate is the test's <em>size</em> and should be close to 5%. When it is false, the rate is the test's <em>power</em>, its chance of detecting the problem in a single study, and higher is better.`;
+  if(pop.valid&&pop.endog)h+=` Here <var>X</var> is endogenous, so the Durbin–Wu–Hausman rate of ${pct(o.dwh)} is its power${weak?", which is low because weak instruments leave the test little information to work with":""}.`;
+  else if(pop.valid)h+=` Here <var>X</var> is exogenous, so the Durbin–Wu–Hausman rate of ${pct(o.dwh)} is its size.`;
+  if(o.nsar){if(pop.valid)h+=` The instruments are valid, so Sargan's rate of ${(100*o.sar/o.nsar).toFixed(1)}% is its size${o.nJ&&p.icc>0?`, and the gap between it and Hansen's J (${(100*o.jr/o.nJ).toFixed(1)}%) shows how much Sargan over-rejects when the data are nested`:""}.`;
+    else if(igap<0.01)h+=` The instruments are invalid but agree with each other, so Sargan rejects only at its chance rate: a study like this would almost never be warned.`;
+    else h+=` The instruments are invalid and imply different values of β, so Sargan's rate of ${(100*o.sar/o.nsar).toFixed(1)}% is its power to detect that disagreement. ${100*o.sar/o.nsar<50?"Most studies like this one would not be warned.":"Most studies like this one would be warned."}`;}
+  h+=`</p>`;
+  $("mc-read").innerHTML=h;
+}
+
+/* ================= Your data ================= */
+const UD={};
+const esc=t=>String(t).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const numv=v=>{if(v==null)return NaN;const t=String(v).trim();if(t===""||/^(na|n\/a|nan|null|\.|-)$/i.test(t))return NaN;const x=Number(t);return Number.isFinite(x)?x:NaN;};
+const g4=v=>{if(!Number.isFinite(v))return v===Infinity?"∞":v===-Infinity?MINUS+"∞":"—";const a=Math.abs(v);let t;if(a!==0&&(a>=1e5||a<1e-3))t=a.toExponential(2);else if(a>=100)t=a.toFixed(1);else if(a>=1)t=a.toFixed(3);else t=a.toFixed(3);return(v<0?MINUS:"")+t;};
+function parseCSV(text){
+  text=text.replace(/^﻿/,"");const lines=text.split(/\r\n|\n|\r/).filter(l=>l.trim()!=="");
+  if(lines.length<2)throw new Error("The data need a header row and at least one row of values.");
+  let delim=",",best=0;for(const d of [",","\t",";"]){const c=lines[0].split(d).length;if(c>best){best=c;delim=d;}}
+  const split=l=>{const out=[];let cur="",q=false;for(let i=0;i<l.length;i++){const ch=l[i];if(q){if(ch==='"'){if(l[i+1]==='"'){cur+='"';i++;}else q=false;}else cur+=ch;}else if(ch==='"')q=true;else if(ch===delim){out.push(cur);cur="";}else cur+=ch;}out.push(cur);return out.map(t=>t.trim());};
+  const seen={},head=split(lines[0]).map((h,i)=>{let nm=h||`column${i+1}`;if(seen[nm]){seen[nm]++;nm=`${nm}_${seen[nm]}`;}else seen[nm]=1;return nm;});
+  if(head.length<3)throw new Error("Only "+head.length+" column"+(head.length===1?" was":"s were")+" found. The analysis needs at least an outcome, an endogenous variable, and an instrument.");
+  const data={};head.forEach(h=>data[h]=[]);
+  for(let r=1;r<lines.length;r++){const v=split(lines[r]);head.forEach((h,j)=>data[h].push(v[j]===undefined?"":v[j]));}
+  return{head,data,n:lines.length-1};
+}
+function udLoad(text,label,guess){
+  try{const P=parseCSV(text);UD.head=P.head;UD.raw=P.data;UD.n=P.n;UD.guess=guess||null;
+    UD.numeric=P.head.filter(h=>{const v=P.data[h].filter(t=>t!=="");return v.length>0&&v.filter(t=>Number.isFinite(numv(t))).length/v.length>=.9;});
+    if(UD.numeric.length<3)throw new Error("Fewer than three columns contain numbers.");
+    $("ud-status").innerHTML=`Loaded ${esc(label)}: ${P.n} rows and ${P.head.length} columns, ${UD.numeric.length} of them numeric.`;
+    udPickers();$("ud-step2").hidden=false;$("ud-results").hidden=true;$("ud-msg").textContent="";
+  }catch(e){$("ud-status").innerHTML=`<span class="err">The data could not be read. ${esc(e.message)}</span>`;$("ud-step2").hidden=true;$("ud-results").hidden=true;}
+}
+function udPickers(){
+  const N=UD.numeric,g=UD.guess||{},opt=(arr,sel)=>arr.map(h=>`<option value="${esc(h)}"${h===sel?" selected":""}>${esc(h)}</option>`).join("");
+  $("ud-y").innerHTML=opt(N,g.y||N[N.length-1]);$("ud-x").innerHTML=opt(N,g.x||N[N.length-2]);
+  const box=(id,sel)=>N.map((h,i)=>`<label class="ck"><input type="checkbox" id="${id}-${i}" value="${esc(h)}"${sel&&sel.includes(h)?" checked":""}> ${esc(h)}</label>`).join("");
+  $("ud-z").innerHTML=box("udz",g.z);$("ud-w").innerHTML=box("udw",g.w);
+  $("ud-c").innerHTML=`<option value="">None (independent cases)</option>`+opt(UD.head,g.c||"");
+}
+function udExample(){
+  const{xy}=cur,n=xy.x.length,r=v=>v.toFixed(3);let t="team,z1,z2,x,y\n";
+  for(let i=0;i<n;i++)t+=`${Math.floor(i/10)+1},${r(xy.z1[i])},${r(xy.z2[i])},${r(xy.x[i])},${r(xy.y[i])}\n`;
+  udLoad(t,`example data from the lab (current settings, true β = ${f(S.beta)})`,{y:"y",x:"x",z:["z1","z2"],w:[],c:S.icc>0?"team":""});
+  if(S.icc>0)$("ud-se-cl").checked=true;
+}
+const mmul=(A,B)=>A.map(r=>B[0].map((_,j)=>r.reduce((t,v,k)=>t+v*B[k][j],0)));
+function vcm(C,inv,res,type,cl){const n=res.length,P=C.length;
+  if(type==="conv"){let ee=0;for(let i=0;i<n;i++)ee+=res[i]*res[i];const s2=ee/(n-P);return inv.map(r=>r.map(v=>v*s2));}
+  const M=Array.from({length:P},()=>new Array(P).fill(0));let adj;
+  if(type==="hc1"){for(let i=0;i<n;i++){const e2=res[i]*res[i];for(let a=0;a<P;a++){const ca=C[a][i]*e2;for(let b=a;b<P;b++)M[a][b]+=ca*C[b][i];}}adj=n/(n-P);}
+  else{const G=cl.G,Sg=Array.from({length:G},()=>new Float64Array(P));for(let i=0;i<n;i++){const g=cl.id[i];for(let a=0;a<P;a++)Sg[g][a]+=C[a][i]*res[i];}
+    for(let g=0;g<G;g++)for(let a=0;a<P;a++)for(let b=a;b<P;b++)M[a][b]+=Sg[g][a]*Sg[g][b];adj=G/(G-1)*(n-1)/(n-P);}
+  for(let a=0;a<P;a++)for(let b=0;b<a;b++)M[a][b]=M[b][a];
+  return mmul(mmul(inv,M),inv).map(r=>r.map(v=>v*adj));}
+const subm=(V,k)=>V.slice(0,k).map(r=>r.slice(0,k));
+function waldF(b,V,k,df){const Vi=invert(V);if(!Vi)return{F:NaN,p:NaN};let w=0;for(let a=0;a<k;a++)for(let c=0;c<k;c++)w+=b[a]*Vi[a][c]*b[c];const F=w/k;return{F,p:pF(F,k,df)};}
+function gmmJ(Q,R,y,e,cl){const n=y.length,L=Q.length,K=R.length,Sm=Array.from({length:L},()=>new Array(L).fill(0));
+  if(cl){const Sg=Array.from({length:cl.G},()=>new Float64Array(L));for(let i=0;i<n;i++)for(let l=0;l<L;l++)Sg[cl.id[i]][l]+=Q[l][i]*e[i];for(const s of Sg)for(let a=0;a<L;a++)for(let b=0;b<L;b++)Sm[a][b]+=s[a]*s[b];}
+  else for(let i=0;i<n;i++){const e2=e[i]*e[i];for(let a=0;a<L;a++)for(let b=0;b<L;b++)Sm[a][b]+=e2*Q[a][i]*Q[b][i];}
+  for(let a=0;a<L;a++)for(let b=0;b<L;b++)Sm[a][b]/=n;const Si=invert(Sm);if(!Si)return null;
+  const QR=Array.from({length:L},()=>new Array(K).fill(0)),Qy=new Array(L).fill(0);
+  for(let i=0;i<n;i++)for(let l=0;l<L;l++){Qy[l]+=Q[l][i]*y[i];for(let k=0;k<K;k++)QR[l][k]+=Q[l][i]*R[k][i];}
+  const SQR=mmul(Si,QR),SQy=Si.map(r=>r.reduce((t,v,j)=>t+v*Qy[j],0));
+  const A=Array.from({length:K},(_,a)=>Array.from({length:K},(_,b)=>QR.reduce((t,r,l)=>t+r[a]*SQR[l][b],0))),bv=Array.from({length:K},(_,a)=>QR.reduce((t,r,l)=>t+r[a]*SQy[l],0));
+  const Ai=invert(A);if(!Ai)return null;const be=Ai.map(r=>r.reduce((t,v,j)=>t+v*bv[j],0));
+  const gb=new Array(L).fill(0);for(let i=0;i<n;i++){let r=y[i];for(let k=0;k<K;k++)r-=be[k]*R[k][i];for(let l=0;l<L;l++)gb[l]+=Q[l][i]*r;}
+  for(let l=0;l<L;l++)gb[l]/=n;let J=0;for(let a=0;a<L;a++)for(let b=0;b<L;b++)J+=gb[a]*Si[a][b]*gb[b];J*=n;return{J,df:L-K,p:pChi(J,L-K)};}
+function arSet(y,x,Q,k,se,cl,c,h){
+  const n=y.length,P=Q.length,ry=ols(Q,y),rx=ols(Q,x),inv=ry.inv,dfd=se==="cluster"?cl.G-1:n-P;
+  const eY=ry.res,eX=rx.res;let yy=0,yx=0,xx=0;for(let i=0;i<n;i++){yy+=eY[i]*eY[i];yx+=eY[i]*eX[i];xx+=eX[i]*eX[i];}
+  let Myy,Myx,Mxx,adj=1;
+  if(se!=="conv"){const Z=()=>Array.from({length:P},()=>new Array(P).fill(0));Myy=Z();Myx=Z();Mxx=Z();
+    if(se==="hc1"){for(let i=0;i<n;i++){const a1=eY[i]*eY[i],a2=eY[i]*eX[i],a3=eX[i]*eX[i];for(let a=0;a<P;a++)for(let b=0;b<P;b++){const q=Q[a][i]*Q[b][i];Myy[a][b]+=q*a1;Myx[a][b]+=q*a2;Mxx[a][b]+=q*a3;}}adj=n/(n-P);}
+    else{const SY=Array.from({length:cl.G},()=>new Float64Array(P)),SX=Array.from({length:cl.G},()=>new Float64Array(P));for(let i=0;i<n;i++){const g=cl.id[i];for(let a=0;a<P;a++){SY[g][a]+=Q[a][i]*eY[i];SX[g][a]+=Q[a][i]*eX[i];}}
+      for(let g=0;g<cl.G;g++)for(let a=0;a<P;a++)for(let b=0;b<P;b++){Myy[a][b]+=SY[g][a]*SY[g][b];Myx[a][b]+=SY[g][a]*SX[g][b];Mxx[a][b]+=SX[g][a]*SX[g][b];}adj=cl.G/(cl.G-1)*(n-1)/(n-P);}}
+  const pAt=b0=>{const b=ry.b.map((v,j)=>v-b0*rx.b[j]).slice(0,k);let V;
+    if(se==="conv"){const s2=(yy-2*b0*yx+b0*b0*xx)/(n-P);V=subm(inv,k).map(r=>r.map(v=>v*s2));}
+    else{const M=Myy.map((r,a)=>r.map((v,j)=>v-b0*(Myx[a][j]+Myx[j][a])+b0*b0*Mxx[a][j]));V=subm(mmul(mmul(inv,M),inv),k).map(r=>r.map(v=>v*adj));}
+    return waldF(b,V,k,dfd).p;};
+  const acc=b0=>pAt(b0)>=0.05;
+  const pts=[];for(let i=0;i<=2000;i++)pts.push(c-h+2*h*i/2000);
+  for(let i=1;i<=120;i++){const d=h*Math.pow(10,i/12);pts.push(c-d,c+d);}
+  pts.sort((a,b)=>a-b);const A=pts.map(acc),lo=pts[0],hi=pts[pts.length-1],out=[];
+  const bis=(a,b,aAcc)=>{for(let t=0;t<50;t++){const m=(a+b)/2;if(acc(m)===aAcc)a=m;else b=m;}return(a+b)/2;};
+  let i=0;while(i<pts.length){if(!A[i]){i++;continue;}let j=i;while(j+1<pts.length&&A[j+1])j++;
+    const L=i===0?-Infinity:bis(pts[i],pts[i-1],true),U=j===pts.length-1?Infinity:bis(pts[j],pts[j+1],true);out.push([L,U]);i=j+1;}
+  return{set:out,p0:pAt(0)};
+}
+function udRun(){
+  const msg=t=>{$("ud-msg").innerHTML=`<span class="err">${esc(t)}</span>`;};
+  const yv=$("ud-y").value,xv=$("ud-x").value,zs=[...document.querySelectorAll("#ud-z input:checked")].map(e=>e.value),ws=[...document.querySelectorAll("#ud-w input:checked")].map(e=>e.value),cv=$("ud-c").value,se=document.querySelector('input[name="ud-se"]:checked').value;
+  if(yv===xv)return msg("The outcome and the endogenous variable must be different columns.");
+  if(!zs.length)return msg("Choose at least one instrument.");
+  if(zs.includes(yv)||zs.includes(xv))return msg("An instrument cannot also be the outcome or the endogenous variable.");
+  if(ws.some(w=>w===yv||w===xv||zs.includes(w)))return msg("A control variable cannot also be the outcome, the endogenous variable, or an instrument.");
+  if(se==="cluster"&&!cv)return msg("Choose a cluster variable to use cluster-robust standard errors.");
+  const vars=[yv,xv,...zs,...ws],keep=[];
+  for(let i=0;i<UD.n;i++){if(vars.every(v=>Number.isFinite(numv(UD.raw[v][i])))&&(!cv||String(UD.raw[cv][i]).trim()!==""))keep.push(i);}
+  const n=keep.length,k=zs.length,P=ws.length+1;
+  if(n<k+P+10)return msg(`Only ${n} complete rows remain, which is too few for this model.`);
+  const col=v=>Float64Array.from(keep,i=>numv(UD.raw[v][i]));
+  let cl=null;if(cv){const map=new Map(),id=new Int32Array(n);keep.forEach((i,j)=>{const key=String(UD.raw[cv][i]).trim();if(!map.has(key))map.set(key,map.size);id[j]=map.get(key);});cl={id,G:map.size};
+    if(se==="cluster"&&cl.G<2)return msg("The cluster variable has only one value.");}
+  try{const R=udAnalyze(col(yv),col(xv),zs.map(col),ws.map(col),cl,se,{yv,xv,zs,ws,cv});R.dropped=UD.n-n;UD.last=R;udRender(R);$("ud-msg").textContent=`Analyzed ${n} complete rows.`;}
+  catch(e){msg(e.message);}
+}
+function udAnalyze(y,x,Z,W,cl,se,names){
+  const n=y.length,one=new Float64Array(n).fill(1),Wc=[one,...W],k=Z.length,p=Wc.length,Q=[...Z,...Wc],useCl=se==="cluster"?cl:null;
+  const dfr=se==="cluster"?cl.G-1:null,tp=(t,df)=>pT2(t,df);
+  const o=ols([x,...Wc],y);if(!o)throw new Error("The OLS regression could not be computed. Check for a constant or duplicated variable among X and the controls.");
+  const Vo=vcm([x,...Wc],o.inv,o.res,se,useCl),seO=Math.sqrt(Vo[0][0]),dfO=dfr||n-p-1;
+  const fs=ols(Q,x),fr=ols(Wc,x);if(!fs||!fr)throw new Error("The first-stage regression could not be computed. Check for instruments that are constant or duplicate one another or a control variable.");
+  const Vf=vcm(Q,fs.inv,fs.res,se,useCl),pi=fs.b.slice(0,k),Vpi=subm(Vf,k),dfF=dfr||n-k-p;
+  const Fconv=((fr.rss-fs.rss)/k)/(fs.rss/(n-k-p)),pR2=(fr.rss-fs.rss)/fr.rss,Fw=waldF(pi,Vpi,k,dfF);
+  const Zt=Z.map(z=>{const r=ols(Wc,z);return r?r.res:z;}),ZZ=Zt.map(a=>Zt.map(b=>{let t=0;for(let i=0;i<n;i++)t+=a[i]*b[i];return t;}));
+  let num=0,den=0;for(let a=0;a<k;a++)for(let b=0;b<k;b++){num+=pi[a]*ZZ[a][b]*pi[b];den+=Vpi[a][b]*ZZ[b][a];}const Feff=num/den;
+  const fsRows=pi.map((b,j)=>{const s=Math.sqrt(Vpi[j][j]),t=b/s;return{name:names.zs[j],b,se:s,t,p:tp(t,dfF)};});
+  const xh=fs.fit,A=[xh,...Wc],ss=ols(A,y);if(!ss)throw new Error("The second-stage regression could not be computed.");
+  const e=new Float64Array(n);for(let i=0;i<n;i++){let r=y[i]-ss.b[0]*x[i];for(let j=0;j<p;j++)r-=ss.b[j+1]*Wc[j][i];e[i]=r;}
+  const Vi=vcm(A,ss.inv,e,se,useCl),bI=ss.b[0],seI=Math.sqrt(Vi[0][0]);
+  const dw=ols([x,...Wc,fs.res],y);let dwh=null;if(dw){const Vd=vcm([x,...Wc,fs.res],dw.inv,dw.res,se,useCl),j=p+1,t=dw.b[j]/Math.sqrt(Vd[j][j]),df=dfr||n-p-2;dwh={F:t*t,df,p:tp(t,df)};}
+  let sar=null,J=null;if(k>1){const aux=ols(Q,e);const R2=1-aux.rss/aux.tss;sar={S:n*R2,df:k-1,p:pChi(n*R2,k-1)};J=gmmJ(Q,[x,...Wc],y,e,useCl);}
+  const h=Math.max(25*seI,10*seO,1e-6*Math.max(1,Math.abs(bI)));const ar=arSet(y,x,Q,k,se,cl,bI,h);
+  const res=v=>{if(!W.length){let m=0;for(let i=0;i<n;i++)m+=v[i];m/=n;return Float64Array.from(v,t=>t-m);}return ols(Wc,v).res;};
+  return{n,k,p,se,cl,names,G:cl?cl.G:null,ols:{b:o.b[0],se:seO,p:tp(o.b[0]/seO,dfO),b0:o.b[1]},iv:{b:bI,se:seI,p:tp(bI/seI,dfr||n-p-1),b0:ss.b[1]},
+    Fconv,Fw,Feff,pR2,fsRows,dwh,sar,J,ar,plot:{y:W.length?res(y):y,x:W.length?res(x):x,xh:W.length?res(xh):xh,partial:W.length>0}};
+}
+function udVerdict(R){const sy=[16.38,19.93,22.30,24.58,26.87][R.k-1],robust=R.se!=="conv",Fv=robust?R.Feff:R.Fconv,cut=robust?(R.k===1?23.1:10):(sy||10);
+  return{Fv,cut,label:robust?"effective F":"first-stage F",src:robust&&R.k===1?"Montiel Olea and Pflueger's critical value":sy&&!robust?"the Stock–Yogo critical value":"the rule-of-thumb value",cls:Fv>=cut?"good":Fv>=10?"warn":"bad",word:Fv>=cut?"strong":Fv>=10?"only moderately strong":"weak"};}
+function tfmt(ts){const st=ts.length>1?Math.abs(ts[1]-ts[0]):1,d=Math.max(0,Math.min(6,-Math.floor(Math.log10(st)+1e-9)));return t=>(t<-1e-12?MINUS:"")+Math.abs(t).toFixed(d);}
+function arText(set){if(!set.length)return"empty: no value of β is consistent with the data, which points to invalid instruments";if(set.length===1&&set[0][0]===-Infinity&&set[0][1]===Infinity)return"all values (unbounded)";return set.map(([a,b])=>`[${g4(a)}, ${g4(b)}]`).join(" ∪ ");}
+function udRender(R){
+  const ci=(b,s)=>[b-1.96*s,b+1.96*s],seLab={conv:"conventional",hc1:"heteroskedasticity-robust",cluster:`cluster-robust (${R.G} clusters)`}[R.se];
+  $("ud-results").hidden=false;
+  $("ud-note").textContent=`n = ${R.n}${R.dropped?` (${R.dropped} incomplete rows dropped)`:""} · ${R.k} instrument${R.k>1?"s":""} · ${R.p-1} control${R.p===2?"":"s"} · ${seLab} standard errors`;
+  const row=(nm,key,b,s,p)=>{const[l,h]=ci(b,s);return`<tr><td><span class="key ${key}"></span>${nm}</td><td class="num">${g4(b)}</td><td class="num">${g4(s)}</td><td class="num">[${g4(l)}, ${g4(h)}]</td><td class="num">${fp(p)}</td></tr>`;};
+  const unb=R.ar.set.some(([a,b])=>!Number.isFinite(a)||!Number.isFinite(b));
+  $("ud-est").innerHTML=row("OLS","k-ols",R.ols.b,R.ols.se,R.ols.p)+row("2SLS","k-iv",R.iv.b,R.iv.se,R.iv.p)+`<tr><td><span class="key" style="background:var(--z)"></span>Anderson–Rubin</td><td class="num">—</td><td class="num">—</td><td class="num" style="white-space:normal">${arText(R.ar.set)}</td><td class="num">${fp(R.ar.p0)}</td></tr>`;
+  udForest(R);
+  $("ud-forest-note").textContent=`The p values test whether the effect is zero. For Anderson–Rubin, the interval is the set of effect sizes the test does not reject at the 5% level${unb?"; arrows mark parts of the set that extend without limit":""}.`;
+  const {yv,xv}=R.names,P=R.plot;
+  $("ud-s1-title").innerHTML=P.partial?`${esc(yv)} against ${esc(xv)}, after removing the controls`:`${esc(yv)} against ${esc(xv)}`;
+  $("ud-s2-title").innerHTML=P.partial?`${esc(yv)} against the instrument-driven part of ${esc(xv)}, after removing the controls`:`${esc(yv)} against the instrument-driven part of ${esc(xv)}`;
+  const mean=v=>{let t=0;for(let i=0;i<v.length;i++)t+=v[i];return t/v.length;};
+  const my=mean(P.y),mx=mean(P.x),mh=mean(P.xh);
+  udXY("ud-s1",P.x,P.y,[{b1:R.ols.b,b0:my-R.ols.b*mx,cls:"l-ols"},{b1:R.iv.b,b0:my-R.iv.b*mx,cls:"l-iv"}],P.partial?`${xv} (residual)`:xv,P.partial?`${yv} (residual)`:yv);
+  udXY("ud-s2",P.xh,P.y,[{b1:R.iv.b,b0:my-R.iv.b*mh,cls:"l-iv"}],P.partial?`predicted ${xv} from instruments (residual)`:`predicted ${xv} from instruments`,P.partial?`${yv} (residual)`:yv);
+  $("ud-fs").innerHTML=R.fsRows.map(r=>`<tr><td>${esc(r.name)}</td><td class="num">${g4(r.b)}</td><td class="num">${g4(r.se)}</td><td class="num">${f(r.t)}</td><td class="num">${fp(r.p)}</td></tr>`).join("");
+  const V=udVerdict(R);
+  $("ud-fs-sum").innerHTML=`<div class="r"><span>Partial R² of the instruments</span><span class="v">${f(R.pR2,3)}</span></div>
+    <div class="r"><span>Conventional first-stage F(${R.k}, ${R.n-R.k-R.p})</span><span class="v">${fbig(R.Fconv)}</span></div>
+    ${R.se!=="conv"?`<div class="r"><span>Effective F (${seLab})</span><span class="v">${fbig(R.Feff)}</span></div>`:""}
+    <div class="r"><span>Benchmark for the ${V.label}</span><span class="v">${V.cut} ${pill(V.cls,V.word[0].toUpperCase()+V.word.slice(1))}</span></div>`;
+  const d=[];
+  if(R.dwh)d.push(`<tr><td>Durbin–Wu–Hausman<br><span class="fn">Is ${esc(xv)} exogenous?</span></td><td class="num">F(1, ${R.dwh.df}) = ${fbig(R.dwh.F)}</td><td class="num">${fp(R.dwh.p)}</td><td>${R.dwh.p<.05?`The OLS and 2SLS estimates differ by more than sampling error would explain, which is evidence that ${esc(xv)} is endogenous and that OLS should not be relied on.`:`The OLS and 2SLS estimates do not differ by more than sampling error would explain. That is not proof that ${esc(xv)} is exogenous${V.cls==="good"?"":", especially because the instruments are not strong, which leaves the test little power"}.`} The test assumes the instruments are valid.</td></tr>`);
+  if(R.sar){const useJ=R.se!=="conv"&&R.J,main=useJ?R.J:R.sar,rej=main.p<.05;
+    d.push(`<tr><td>Sargan<br><span class="fn">Do the instruments agree?</span></td><td class="num">S = ${fbig(R.sar.S)}, χ²(${R.sar.df})</td><td class="num">${fp(R.sar.p)}</td><td>${R.se!=="conv"?"Assumes constant error variance and independent cases; with your choice of standard errors, Hansen's J below is the one to report.":rej?"The instruments imply different values of β by more than chance, so at least one is invalid.":"The instruments do not disagree by more than chance. That does not show they are valid: instruments that are invalid in the same direction agree with each other."}</td></tr>`);
+    if(R.J)d.push(`<tr><td>Hansen's J<br><span class="fn">Do the instruments agree?</span></td><td class="num">J = ${fbig(R.J.J)}, χ²(${R.J.df})</td><td class="num">${fp(R.J.p)}</td><td>${R.se==="conv"?"The robust version of the Sargan test. ":""}${R.J.p<.05?"The instruments imply different values of β by more than chance, so at least one is invalid.":"The instruments do not disagree by more than chance. That does not show they are valid: instruments that are invalid in the same direction agree with each other."}</td></tr>`);}
+  else d.push(`<tr><td>Overidentification<br><span class="fn">Do the instruments agree?</span></td><td class="num">—</td><td class="num">—</td><td>Not available with a single instrument, because there is no second estimate to compare. Exogeneity rests on the argument for the design.</td></tr>`);
+  d.push(`<tr><td>Anderson–Rubin<br><span class="fn">Is the effect zero?</span></td><td class="num">95% set: ${arText(R.ar.set)}</td><td class="num">${fp(R.ar.p0)}</td><td>${unb?"The set is unbounded, which means the data cannot pin down the effect. This is the honest result when the instruments are weak.":R.ar.p0<.05?"The test rejects an effect of zero, and this conclusion does not depend on the instruments being strong.":"The test does not reject an effect of zero."}</td></tr>`);
+  $("ud-diag").innerHTML=d.join("");
+  // reading
+  const ob=R.ols.b,ib=R.iv.b,diff=ib-ob;
+  let t=`<div class="eyebrow">Reading these results</div><p><b>Instrument strength.</b> The instruments explain ${(100*R.pR2).toFixed(1)}% of the variation in ${esc(xv)}${R.p>1?" that the controls do not explain":""}. The ${V.label} is ${fbig(V.Fv)}, compared with ${V.src} of ${V.cut}, so the instruments are <b>${V.word}</b>.${V.cls==="bad"?" With instruments this weak, the 2SLS estimate and its conventional interval are unreliable, so rely on the Anderson–Rubin set instead.":""}</p>`;
+  t+=`<p><b>The estimates.</b> OLS estimates the effect of ${esc(xv)} on ${esc(yv)} at ${g4(ob)}; 2SLS estimates it at ${g4(ib)}, ${Math.abs(diff)<1e-12?"the same value":`${diff>0?"higher":"lower"} by ${g4(Math.abs(diff))}`}. ${R.dwh?(R.dwh.p<.05?"The Durbin–Wu–Hausman test indicates that this difference is larger than sampling error would explain, so if the instruments are valid, the OLS estimate is biased.":"The Durbin–Wu–Hausman test does not indicate a difference larger than sampling error would explain."):""} The 2SLS standard error is ${f(R.iv.se/R.ols.se,1)} times the OLS standard error, the precision cost of using only the part of ${esc(xv)} that the instruments explain.</p>`;
+  t+=`<p><b>What the data cannot tell you.</b> Every 2SLS result here assumes the instruments affect ${esc(yv)} only through ${esc(xv)}. ${R.k>1?"The overidentification tests can detect instruments that disagree with one another, but not instruments that are invalid in the same direction.":"With one instrument, no test can check that assumption."} The case for that assumption has to come from the design, as described in §7. The sensitivity analysis in §4 shows how much a small violation would change the estimate.</p>`;
+  $("ud-read").innerHTML=t;
+  // copy text
+  const L=[];L.push(`IV analysis: effect of ${xv} on ${yv}`);L.push(`n = ${R.n}; instruments: ${R.names.zs.join(", ")}; controls: ${R.names.ws.join(", ")||"none"}; ${seLab} standard errors`);L.push("");
+  const pl=v=>g4(v).replace(MINUS,"-");L.push(`OLS:   b = ${pl(ob)}, SE = ${pl(R.ols.se)}, 95% CI [${pl(ci(ob,R.ols.se)[0])}, ${pl(ci(ob,R.ols.se)[1])}]`);
+  L.push(`2SLS:  b = ${pl(ib)}, SE = ${pl(R.iv.se)}, 95% CI [${pl(ci(ib,R.iv.se)[0])}, ${pl(ci(ib,R.iv.se)[1])}]`);
+  L.push(`Anderson-Rubin 95% set: ${arText(R.ar.set).replace(/−/g,"-")}; test of zero effect p ${fp(R.ar.p0)}`);L.push("");
+  L.push(`First stage: partial R2 = ${R.pR2.toFixed(3)}; F = ${fbig(R.Fconv)}${R.se!=="conv"?`; effective F = ${fbig(R.Feff)}`:""}`);
+  R.fsRows.forEach(r=>L.push(`  ${r.name}: b = ${pl(r.b)}, SE = ${pl(r.se)}, t = ${r.t.toFixed(2)}, p ${fp(r.p)}`));
+  if(R.dwh)L.push(`Durbin-Wu-Hausman: F(1, ${R.dwh.df}) = ${fbig(R.dwh.F)}, p ${fp(R.dwh.p)}`);
+  if(R.sar)L.push(`Sargan: S = ${fbig(R.sar.S)}, df = ${R.sar.df}, p ${fp(R.sar.p)}`);
+  if(R.J)L.push(`Hansen J: J = ${fbig(R.J.J)}, df = ${R.J.df}, p ${fp(R.J.p)}`);
+  $("ud-copy-text").value=L.join("\n");$("ud-copy-text").hidden=true;$("ud-copy-msg").textContent="";
+  $("ud-results").scrollIntoView({behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"});
+}
+function udForest(R){
+  const W=900,H=140,L=130,Rm=24,T=16,B=30,ci=(b,s)=>[b-1.96*s,b+1.96*s],o=ci(R.ols.b,R.ols.se),v=ci(R.iv.b,R.iv.se);
+  const fin=[...o,...v,R.ols.b,R.iv.b,0];R.ar.set.forEach(([a,b])=>{if(Number.isFinite(a))fin.push(a);if(Number.isFinite(b))fin.push(b);});
+  let lo=Math.min(...fin),hi=Math.max(...fin);const span=Math.min(hi-lo,Math.max(Math.abs(o[1]-o[0]),Math.abs(v[1]-v[0]))*6||1);
+  const mid=(R.iv.b+R.ols.b)/2;if(hi-lo>span){lo=Math.max(lo,mid-span/2);hi=Math.min(hi,mid+span/2);}
+  const pad=(hi-lo)*.08||1;lo-=pad;hi+=pad;const X=t=>L+(Math.min(Math.max(t,lo),hi)-lo)/(hi-lo)*(W-L-Rm);
+  const fts=niceTicks(lo,hi,7),ff=tfmt(fts);let s=`<g class="axis">${fts.map(t=>`<line x1="${X(t)}" x2="${X(t)}" y1="${T}" y2="${H-B}"/><text x="${X(t)}" y="${H-B+16}" text-anchor="middle">${ff(t)}</text>`).join("")}</g>`;
+  if(0>lo&&0<hi)s+=`<line class="s-zero" x1="${X(0)}" x2="${X(0)}" y1="${T-4}" y2="${H-B}"/>`;
+  const seg=(a,b,y,cls,fc)=>{let t=`<line class="${cls}" x1="${X(a)}" x2="${X(b)}" y1="${y}" y2="${y}"/>`;if(a<lo)t+=`<path class="${fc}" d="M${X(lo)} ${y} l7 -5 v10z"/>`;if(b>hi)t+=`<path class="${fc}" d="M${X(hi)} ${y} l-7 -5 v10z"/>`;return t;};
+  const rows=[["OLS",o,R.ols.b,"l-ols","f-ols"],["2SLS",v,R.iv.b,"l-iv","f-iv"]];
+  rows.forEach(([nm,c,b,lc,fc],i)=>{const y=T+14+i*34;s+=`<text class="lbl" x="${L-10}" y="${y+4}" text-anchor="end">${nm}</text>`+seg(c[0],c[1],y,lc,fc);if(b>=lo&&b<=hi)s+=`<circle class="${fc}" cx="${X(b)}" cy="${y}" r="5"/>`;});
+  const ya=T+14+2*34;s+=`<text class="lbl" x="${L-10}" y="${ya+4}" text-anchor="end">Anderson–Rubin</text>`;
+  if(!R.ar.set.length)s+=`<text class="lbl" x="${L}" y="${ya+4}">empty set</text>`;
+  R.ar.set.forEach(([a,b])=>{const aa=Math.max(a,lo-1e9),bb=Math.min(b,hi+1e9);if(bb<lo||aa>hi)return;s+=seg(aa,bb,ya,"l-ar","f-ar");});
+  $("ud-forest").innerHTML=s;
+}
+function udXY(id,xs,ys,lines,xl,yl){
+  const W=640,H=380,L=56,Rm=14,T=12,B=42,n=xs.length;
+  const x0q=quant(xs,.005),x1q=quant(xs,.995),y0q=quant(ys,.005),y1q=quant(ys,.995),px=(x1q-x0q)*.06||1,py=(y1q-y0q)*.06||1;
+  const x0=x0q-px,x1=x1q+px,y0=y0q-py,y1=y1q+py,X=v=>L+(v-x0)/(x1-x0)*(W-L-Rm),Y=v=>H-B-(v-y0)/(y1-y0)*(H-B-T);
+  let s=`<defs><clipPath id="clip-${id}"><rect x="${L}" y="${T}" width="${W-L-Rm}" height="${H-B-T}"/></clipPath></defs>`;
+  const tx=niceTicks(x0,x1,7),ty=niceTicks(y0,y1,6),fx=tfmt(tx),fy=tfmt(ty);
+  s+=`<g class="grid">${tx.map(t=>`<line x1="${X(t)}" x2="${X(t)}" y1="${T}" y2="${H-B}"/>`).join("")}${ty.map(t=>`<line x1="${L}" x2="${W-Rm}" y1="${Y(t)}" y2="${Y(t)}"/>`).join("")}</g>`;
+  s+=`<g class="axis">${tx.map(t=>`<text x="${X(t)}" y="${H-B+16}" text-anchor="middle">${fx(t)}</text>`).join("")}${ty.map(t=>`<text x="${L-8}" y="${Y(t)+4}" text-anchor="end">${fy(t)}</text>`).join("")}</g>`;
+  s+=`<text class="lbl" x="${(L+W-Rm)/2}" y="${H-6}" text-anchor="middle">${esc(xl)}</text><text class="lbl" x="12" y="${T+4}" transform="rotate(-90 12 ${T+4})" text-anchor="end">${esc(yl)}</text>`;
+  const step=Math.max(1,Math.ceil(n/2500)),r=n>800?1.6:n>250?2.2:2.8;let d="";
+  for(let i=0;i<n;i+=step){const cx=X(xs[i]),cy=Y(ys[i]);if(cx<L||cx>W-Rm||cy<T||cy>H-B)continue;d+=`M${(cx-r).toFixed(1)} ${cy.toFixed(1)}a${r} ${r} 0 1 0 ${2*r} 0a${r} ${r} 0 1 0 ${-2*r} 0`;}
+  s+=`<g clip-path="url(#clip-${id})"><path class="pts" d="${d}"/>`+lines.map(l=>`<line class="${l.cls}" x1="${X(x0)}" y1="${Y(l.b0+l.b1*x0)}" x2="${X(x1)}" y2="${Y(l.b0+l.b1*x1)}"/>`).join("")+`</g>`;
+  $(id).innerHTML=s;
+}
+function udInit(){
+  $("ud-file").addEventListener("change",e=>{const fl=e.target.files&&e.target.files[0];if(!fl)return;const rd=new FileReader();rd.onload=()=>udLoad(String(rd.result),fl.name);rd.onerror=()=>{$("ud-status").innerHTML=`<span class="err">The file could not be opened.</span>`;};rd.readAsText(fl);});
+  $("ud-example").onclick=udExample;
+  $("ud-paste-go").onclick=()=>{const t=$("ud-paste").value;if(!t.trim()){$("ud-status").innerHTML=`<span class="err">Paste some data first.</span>`;return;}udLoad(t,"pasted data");};
+  $("ud-run").onclick=udRun;
+  $("ud-copy").onclick=()=>{const ta=$("ud-copy-text"),t=ta.value;const fallback=()=>{ta.hidden=false;ta.focus();ta.select();$("ud-copy-msg").textContent="Copying is not available here. The text is selected; press Ctrl+C or ⌘C.";};
+    try{navigator.clipboard.writeText(t).then(()=>{$("ud-copy-msg").textContent="Copied.";},fallback);}catch(err){fallback();}};
+}
+
+function citeInit(){document.querySelectorAll(".cite-btn").forEach(b=>b.addEventListener("click",()=>{const el=$(b.dataset.target),t=el.innerText.replace(/^Please cite the published methods as well as the tool, for example: /,"").replace(/^“|”$/g,"");
+  const fb=()=>{const r=document.createRange();r.selectNodeContents(el);const sel=getSelection();sel.removeAllRanges();sel.addRange(r);$("cite-msg").textContent="Copying is not available here. The citation is selected; press Ctrl+C or ⌘C.";};
+  try{navigator.clipboard.writeText(t).then(()=>{$("cite-msg").textContent="Copied.";},fb);}catch(e){fb();}}));}
+/* ================= Boot ================= */
+buildControls();buildDag();syncControls();update();runMC();udInit();citeInit();
+</script>
+</body>
+</html>
