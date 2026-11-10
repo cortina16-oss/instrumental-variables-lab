@@ -1394,22 +1394,24 @@ function udAnalyze(y,x,Z,W,cl,se,names){
   let sar=null,J=null;if(k>1){const aux=ols(Q,e);const R2=1-aux.rss/aux.tss;sar={S:n*R2,df:k-1,p:pChi(n*R2,k-1)};J=gmmJ(Q,[x,...Wc],y,e,useCl);}
   const h=Math.max(25*seI,10*seO,1e-6*Math.max(1,Math.abs(bI)));const ar=arSet(y,x,Q,k,se,cl,bI,h);
   const res=v=>{if(!W.length){let m=0;for(let i=0;i<n;i++)m+=v[i];m/=n;return Float64Array.from(v,t=>t-m);}return ols(Wc,v).res;};
-  return{n,k,p,se,cl,names,G:cl?cl.G:null,ols:{b:o.b[0],se:seO,p:tp(o.b[0]/seO,dfO),b0:o.b[1]},iv:{b:bI,se:seI,p:tp(bI/seI,dfr||n-p-1),b0:ss.b[1]},
+  const dfCI=dfr||n-p-1;
+  return{n,k,p,se,cl,names,G:cl?cl.G:null,dfCI,tc:tcrit(dfCI),ols:{b:o.b[0],se:seO,p:tp(o.b[0]/seO,dfO),b0:o.b[1]},iv:{b:bI,se:seI,p:tp(bI/seI,dfr||n-p-1),b0:ss.b[1]},
     Fconv,Fw,Feff,pR2,fsRows,dwh,sar,J,ar,plot:{y:W.length?res(y):y,x:W.length?res(x):x,xh:W.length?res(xh):xh,partial:W.length>0}};
 }
+function tcrit(df){if(!(df>0))return 1.96;let lo=0,hi=1000;for(let i=0;i<200;i++){const m=(lo+hi)/2;if(pT2(m,df)>0.05)lo=m;else hi=m;}return(lo+hi)/2;}
 function udVerdict(R){const sy=[16.38,19.93,22.30,24.58,26.87][R.k-1],robust=R.se!=="conv",Fv=robust?R.Feff:R.Fconv,cut=robust?(R.k===1?23.1:10):(sy||10);
   return{Fv,cut,label:robust?"effective F":"first-stage F",src:robust&&R.k===1?"Montiel Olea and Pflueger's critical value":sy&&!robust?"the Stock–Yogo critical value":"the rule-of-thumb value",cls:Fv>=cut?"good":Fv>=10?"warn":"bad",word:Fv>=cut?"strong":Fv>=10?"only moderately strong":"weak"};}
 function tfmt(ts){const st=ts.length>1?Math.abs(ts[1]-ts[0]):1,d=Math.max(0,Math.min(6,-Math.floor(Math.log10(st)+1e-9)));return t=>(t<-1e-12?MINUS:"")+Math.abs(t).toFixed(d);}
 function arText(set){if(!set.length)return"empty: no value of β is consistent with the data, which points to invalid instruments";if(set.length===1&&set[0][0]===-Infinity&&set[0][1]===Infinity)return"all values (unbounded)";return set.map(([a,b])=>`[${g4(a)}, ${g4(b)}]`).join(" ∪ ");}
 function udRender(R){
-  const ci=(b,s)=>[b-1.96*s,b+1.96*s],seLab={conv:"conventional",hc1:"heteroskedasticity-robust",cluster:`cluster-robust (${R.G} clusters)`}[R.se];
+  const ci=(b,s)=>[b-R.tc*s,b+R.tc*s],seLab={conv:"conventional",hc1:"heteroskedasticity-robust",cluster:`cluster-robust (${R.G} clusters)`}[R.se];
   $("ud-results").hidden=false;
   $("ud-note").textContent=`n = ${R.n}${R.dropped?` (${R.dropped} incomplete rows dropped)`:""} · ${R.k} instrument${R.k>1?"s":""} · ${R.p-1} control${R.p===2?"":"s"} · ${seLab} standard errors`;
   const row=(nm,key,b,s,p)=>{const[l,h]=ci(b,s);return`<tr><td><span class="key ${key}"></span>${nm}</td><td class="num">${g4(b)}</td><td class="num">${g4(s)}</td><td class="num">[${g4(l)}, ${g4(h)}]</td><td class="num">${fp(p)}</td></tr>`;};
   const unb=R.ar.set.some(([a,b])=>!Number.isFinite(a)||!Number.isFinite(b));
   $("ud-est").innerHTML=row("OLS","k-ols",R.ols.b,R.ols.se,R.ols.p)+row("2SLS","k-iv",R.iv.b,R.iv.se,R.iv.p)+`<tr><td><span class="key" style="background:var(--z)"></span>Anderson–Rubin</td><td class="num">—</td><td class="num">—</td><td class="num" style="white-space:normal">${arText(R.ar.set)}</td><td class="num">${fp(R.ar.p0)}</td></tr>`;
   udForest(R);
-  $("ud-forest-note").textContent=`The p values test whether the effect is zero. For Anderson–Rubin, the interval is the set of effect sizes the test does not reject at the 5% level${unb?"; arrows mark parts of the set that extend without limit":""}.`;
+  $("ud-forest-note").textContent=`The p values test whether the effect is zero. The OLS and 2SLS intervals are β̂ ± ${R.tc.toFixed(3)} × SE, using the t distribution with ${R.dfCI} degrees of freedom${R.se==="cluster"?" (the number of clusters minus 1)":""}, so they agree with the p values. For Anderson–Rubin, the interval is the set of effect sizes the test does not reject at the 5% level${unb?"; arrows mark parts of the set that extend without limit":""}.`;
   const {yv,xv}=R.names,P=R.plot;
   $("ud-s1-title").innerHTML=P.partial?`${esc(yv)} against ${esc(xv)}, after removing the controls`:`${esc(yv)} against ${esc(xv)}`;
   $("ud-s2-title").innerHTML=P.partial?`${esc(yv)} against the instrument-driven part of ${esc(xv)}, after removing the controls`:`${esc(yv)} against the instrument-driven part of ${esc(xv)}`;
@@ -1451,7 +1453,7 @@ function udRender(R){
   $("ud-results").scrollIntoView({behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"});
 }
 function udForest(R){
-  const W=900,H=140,L=130,Rm=24,T=16,B=30,ci=(b,s)=>[b-1.96*s,b+1.96*s],o=ci(R.ols.b,R.ols.se),v=ci(R.iv.b,R.iv.se);
+  const W=900,H=140,L=130,Rm=24,T=16,B=30,ci=(b,s)=>[b-R.tc*s,b+R.tc*s],o=ci(R.ols.b,R.ols.se),v=ci(R.iv.b,R.iv.se);
   const fin=[...o,...v,R.ols.b,R.iv.b,0];R.ar.set.forEach(([a,b])=>{if(Number.isFinite(a))fin.push(a);if(Number.isFinite(b))fin.push(b);});
   let lo=Math.min(...fin),hi=Math.max(...fin);const span=Math.min(hi-lo,Math.max(Math.abs(o[1]-o[0]),Math.abs(v[1]-v[0]))*6||1);
   const mid=(R.iv.b+R.ols.b)/2;if(hi-lo>span){lo=Math.max(lo,mid-span/2);hi=Math.min(hi,mid+span/2);}
