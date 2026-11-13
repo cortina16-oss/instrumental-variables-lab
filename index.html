@@ -233,6 +233,7 @@ td.num{font-family:var(--mono); font-size:.84rem}
 .ud-diag td{vertical-align:top}
 .ud-copy-text{font-family:var(--mono); font-size:.78rem; width:100%; padding:8px; border:1px solid var(--line); border-radius:6px; background:var(--surface-2); color:var(--ink)}
 .f-ar{fill:var(--z)} .l-ar{stroke:var(--z); stroke-width:2.5; fill:none}
+.cite-top{font-size:.92rem; color:var(--ink); max-width:72ch; padding:10px 14px; background:var(--surface); border:1px solid var(--line); border-left:3px solid var(--z); border-radius:0 6px 6px 0; overflow-wrap:anywhere}
 .cite-box{display:grid; gap:14px; max-width:80ch}
 .cite-item{display:grid; grid-template-columns:minmax(0,1fr) auto; gap:4px 14px; align-items:end; padding-bottom:12px; border-bottom:1px solid var(--line)}
 .cite-item h3{grid-column:1/-1; font-size:.9rem}
@@ -299,6 +300,7 @@ footer{padding-block:28px 48px; font-size:.82rem; color:var(--muted); border-top
   <div class="eyebrow">Causal inference with observational data</div>
   <h1>Instrumental <em>Variables</em> Lab</h1>
   <p class="lede">Why a correlated error ruins a regression coefficient, how an instrument recovers the causal effect, and what the standard diagnostics can and cannot tell you. The lab simulates data from a model you control, so you can compare every estimate and test against the truth.</p>
+  <p class="cite-top">If you use any part of this tool, in teaching, writing, or analyzing your own data, please cite it as: Cortina, J. M. (2026). <i>Instrumental Variables Lab</i> (Version 1.0) [Web application]. https://josecortina.com/instrumental-variables-lab</p>
   <div class="eyebrow" id="toc-label" style="margin-bottom:-10px">Contents</div>
   <nav class="toc" aria-labelledby="toc-label">
     <a href="#endogeneity"><span>1</span>Endogeneity</a>
@@ -834,8 +836,8 @@ With ICC &gt; 0, Z₁, Z₂, v, and ε are each
   <div class="secnum">HOW TO CITE</div>
   <div class="cite-box">
     <p class="fn" style="margin:0">Instrumental Variables Lab, Version 1.0 (November 2026)</p>
-    <div class="cite-item"><h3>As a source of information</h3><p class="cite-text" id="cite-info">Cortina, J. (2026). <i>Instrumental variables lab</i>. https://josecortina.com</p><button type="button" class="btn ghost cite-btn" data-target="cite-info">Copy</button></div>
-    <div class="cite-item"><h3>As the tool used to analyze data</h3><p class="cite-text" id="cite-tool">Cortina, J. (2026). <i>Instrumental Variables Lab</i> (Version 1.0) [Web application]. https://josecortina.com</p><button type="button" class="btn ghost cite-btn" data-target="cite-tool">Copy</button></div>
+    <div class="cite-item"><h3>As a source of information</h3><p class="cite-text" id="cite-info">Cortina, J. M. (2026). <i>Instrumental variables lab</i>. https://josecortina.com/instrumental-variables-lab</p><button type="button" class="btn ghost cite-btn" data-target="cite-info">Copy</button></div>
+    <div class="cite-item"><h3>As the tool used to analyze data</h3><p class="cite-text" id="cite-tool">Cortina, J. M. (2026). <i>Instrumental Variables Lab</i> (Version 1.0) [Web application]. https://josecortina.com/instrumental-variables-lab</p><button type="button" class="btn ghost cite-btn" data-target="cite-tool">Copy</button></div>
     <div class="cite-item"><h3>In a methods section</h3><p class="cite-text" id="cite-methods">Please cite the published methods as well as the tool, for example: “2SLS estimates and Anderson–Rubin confidence intervals (Anderson &amp; Rubin, 1949) were computed with the Instrumental Variables Lab (Cortina, 2026).”</p><button type="button" class="btn ghost cite-btn" data-target="cite-methods">Copy</button></div>
     <p class="status" id="cite-msg" aria-live="polite"></p>
   </div>
